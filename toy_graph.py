@@ -7,7 +7,7 @@ For now, this program simply creates a 2D grid graph and prints and displays its
 nodes and edges, based on their relative coordinates.
 
 Each internal node (degree 4) corresponds to an intersection, while each 
-internal edge corresponds to an entry/exit point.
+external node corresponds to an entry/exit point.
 """
 
 INTERNAL_WIDTH = 2
