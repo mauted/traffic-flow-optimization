@@ -8,6 +8,11 @@ class RoadSegmentType(Enum):
 
 class RoadNetwork:
     
+    def __init__(self, roads, edges):
+        # subject to change but I assume this road network will have a list of nodes
+        self.roads = roads
+        self.edges = edges 
+    
     def generate_supergraph(self, num_nodes: int):
         self.V = []
         self.E = []
