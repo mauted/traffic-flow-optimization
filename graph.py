@@ -24,7 +24,7 @@ class Road:
     
     __COUNTER = 0
     
-    def __init__(self, outgoing: list[Road] = [], incoming: list[Road] = []):
+    def __init__(self, outgoing: list[Road] = [], incoming: list[Road] = [], duration: int = 30, ):
         self.id = Road.__COUNTER
         Road.__COUNTER += 1
         self.outgoing = outgoing
