@@ -1,6 +1,14 @@
 from __future__ import annotations 
 from enum import Enum
 
+class Car:
+    
+    __COUNTER = 0
+
+    def __init__(self):
+        self.id = Car.__COUNTER
+        Car.__COUNTER += 1
+
 class RoadSegmentType(Enum):
     IN = 0,
     OUT = 1,
@@ -19,10 +27,7 @@ class RoadNetwork:
         for _ in range(num_nodes):
             self.V.append(Road())
         # Add edges to the graph that ensure that the graph is connected
-        
-
-        
-
+    
 
 
 class Road:
@@ -41,6 +46,18 @@ class Road:
     
     def add_outgoing(self, road):
         self.outgoing.append(road)
+    
+    @classmethod 
+    def reset(cls):
+        cls.__COUNTER = 0
+        
+    def __eq__(self, other):
+        if isinstance(other, Road):
+            return self.id == other.id
+        return False
+    
+    def __hash__(self):
+        return hash(self.id)
     
     def move_car(self, car: Car):
         pass
