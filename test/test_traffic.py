@@ -1,5 +1,6 @@
 from simulation import Traffic
 from graph import Road
+import random
 import pytest 
 
 @pytest.fixture(autouse=True)
@@ -63,8 +64,14 @@ def test_dfs():
         t.add_incoming(s)
 
     traffic = Traffic(nodes, edges, [])
-    print(numbers_to_letters(traffic.dfs(A, B)))
-    print(numbers_to_letters(traffic.dfs(A, G)))    
     
+    # test that the start and end are in the nodes, and that every edge in the path is in the list of edges
+    # this guarantees that we have a feasible path through the traffic network 
+    for _ in range(10): 
+        start, end = random.choices(nodes, k=2)
+        route = traffic.dfs(start, end)
+        assert route[0] in nodes
+        assert route[-1] in nodes
+        for i in range(1, len(route)):
+            assert (route[i - 1], route[i]) in edges
     
-test_dfs()

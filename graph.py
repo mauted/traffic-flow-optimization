@@ -43,11 +43,9 @@ class Road:
     
     def add_incoming(self, road):
         self.incoming.append(road)
-        print(self.incoming)
     
     def add_outgoing(self, road):
         self.outgoing.append(road)
-        print(self.outgoing)
     
     @classmethod 
     def reset(cls):
