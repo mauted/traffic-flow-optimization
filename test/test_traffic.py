@@ -35,3 +35,34 @@ def test_traceback():
     assert traffic._traceback(F, parents) == [A, C, F]
     assert traffic._traceback(Z, parents) == [A, C, F, M, Z]
     assert traffic._traceback(S, parents) == [A, B, D, I, S]
+    
+def test_dfs(): 
+    
+    nodes = [Road() for _ in range(10)]
+    A, B, C, D, E, F, G, H, I, J = nodes
+    edges = [
+    (A, B),
+    (A, C),
+    (B, D),
+    (B, E),
+    (C, F),
+    (D, G),
+    (E, H),
+    (F, I),
+    (G, J),
+    (H, A),
+    (I, B),
+    (J, C),
+    (A, D)
+    ]
+    for source, target in edges:
+        source.add_outgoing(target)
+        target.add_incoming(source)
+        
+    traffic = Traffic(nodes, edges, [])
+    print("AAAAAAAAAAA")
+    print(traffic.dfs(A, B))
+    print(traffic.dfs(A, G))
+    assert False 
+    
+    

@@ -22,33 +22,32 @@ class Traffic:
     
     def find_paths(self, paths: set[tuple[Road, Road]]) -> list[list[Road]]:
         """
-        Finds a path with A* search through the traffic for each path in paths, and returns the list of roads representing the route that the car takes. 
-        Note that the path is not necessarily optimal, nor does it need to be. 
-        The heuristic here 
+        Finds a path with DFS through the traffic network. 
         """
+        pass 
         
-        found_paths = []
+        # found_paths = []
         
-        for p in paths:
+        # for p in paths:
             
-            parents = {}
+        #     parents = {}
             
-            start, end = p
-            frontier = deque()
-            frontier.append(start)
-            explored = set()
+        #     start, end = p
+        #     frontier = deque()
+        #     frontier.append(start)
+        #     explored = set()
             
-            while len(frontier) != 0: 
-                node = frontier.pop()
-                if node == end:
-                    return traceback(node, parents)
-                else: 
-                    explored.add(node)
-                    for succ in node.outgoing:
-                        if succ not in explored: 
-                            frontier.append(succ)
+        #     while len(frontier) != 0: 
+        #         node = frontier.pop()
+        #         if node == end:
+        #             return self._traceback(node, parents)
+        #         else: 
+        #             explored.add(node)
+        #             for succ in node.outgoing:
+        #                 if succ not in explored: 
+        #                     frontier.append(succ)
             
-            found_paths.append(None)
+        #     found_paths.append(None)
 
             
     def dfs(self, start: Road, end: Road) -> list[Road]:
@@ -56,7 +55,6 @@ class Traffic:
     
         parents = {}
             
-        start, end = p
         frontier = deque()
         frontier.append(start)
         explored = set()
@@ -72,6 +70,7 @@ class Traffic:
                         parents[succ] = node
                         frontier.append(succ)
         
+        print("found nothing")
         return None
     
     def _traceback(self, node: Road, parents: dict[Road, Road]):

@@ -59,6 +59,9 @@ class Road:
     def __hash__(self):
         return hash(self.id)
     
+    def __repr__(self):
+        return str(self.id)
+    
     def move_car(self, car: Car):
         pass
     
