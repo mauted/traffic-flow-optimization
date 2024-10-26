@@ -8,9 +8,11 @@ def reset_state():
     Road.reset()
     
 def numbers_to_letters(nodes):
+    
     return [chr(65 + node.id) for node in nodes]
 
 def test_path_generation():
+    
     nodes = [Road() for _ in range(10)]
     traffic = Traffic(nodes, [], [])
     paths = traffic.generate_start_end(10)
@@ -19,6 +21,7 @@ def test_path_generation():
         assert path[0] != path[1]
 
 def test_traceback():
+    
     nodes = [Road() for _ in range(12)]
     A, B, C, D, E, F, I, K, M, S, W, Z = nodes
     traffic = Traffic(nodes, [], [])
