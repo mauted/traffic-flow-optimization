@@ -34,18 +34,20 @@ class Road:
     
     __COUNTER = 0
     
-    def __init__(self, outgoing: list[Road] = [], incoming: list[Road] = []):
+    def __init__(self):
         self.id = Road.__COUNTER
         Road.__COUNTER += 1
-        self.outgoing = outgoing
-        self.incoming = incoming
+        self.outgoing = []
+        self.incoming = []
         self.cars = []
     
     def add_incoming(self, road):
         self.incoming.append(road)
+        print(self.incoming)
     
     def add_outgoing(self, road):
         self.outgoing.append(road)
+        print(self.outgoing)
     
     @classmethod 
     def reset(cls):

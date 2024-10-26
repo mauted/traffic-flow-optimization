@@ -66,7 +66,7 @@ class Traffic:
             else: 
                 explored.add(node)
                 for succ in node.outgoing:
-                    if succ not in explored: 
+                    if succ not in explored and succ not in frontier:
                         parents[succ] = node
                         frontier.append(succ)
         

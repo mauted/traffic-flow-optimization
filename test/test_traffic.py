@@ -5,6 +5,9 @@ import pytest
 @pytest.fixture(autouse=True)
 def reset_state():
     Road.reset()
+    
+def numbers_to_letters(nodes):
+    return [chr(65 + node.id) for node in nodes]
 
 def test_path_generation():
     nodes = [Road() for _ in range(10)]
@@ -43,6 +46,7 @@ def test_dfs():
     edges = [
     (A, B),
     (A, C),
+    (A, D),
     (B, D),
     (B, E),
     (C, F),
@@ -53,16 +57,14 @@ def test_dfs():
     (H, A),
     (I, B),
     (J, C),
-    (A, D)
     ]
-    for source, target in edges:
-        source.add_outgoing(target)
-        target.add_incoming(source)
-        
+    for s, t in edges:
+        s.add_outgoing(t)
+        t.add_incoming(s)
+
     traffic = Traffic(nodes, edges, [])
-    print("AAAAAAAAAAA")
-    print(traffic.dfs(A, B))
-    print(traffic.dfs(A, G))
-    assert False 
+    print(numbers_to_letters(traffic.dfs(A, B)))
+    print(numbers_to_letters(traffic.dfs(A, G)))    
     
     
+test_dfs()
