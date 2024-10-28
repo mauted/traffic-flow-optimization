@@ -37,8 +37,8 @@ class Road:
     def __init__(self, outgoing: list[Road] = [], incoming: list[Road] = [], duration: int = 30, ):
         self.id = Road.__COUNTER
         Road.__COUNTER += 1
-        self.outgoing = outgoing
-        self.incoming = incoming
+        self.outgoing = []
+        self.incoming = []
         self.cars = []
     
     def add_incoming(self, road):
@@ -58,6 +58,9 @@ class Road:
     
     def __hash__(self):
         return hash(self.id)
+    
+    def __repr__(self):
+        return str(self.id)
     
     def move_car(self, car: Car):
         pass

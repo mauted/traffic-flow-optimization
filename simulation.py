@@ -10,6 +10,16 @@ class Traffic:
         self.nodes = nodes
         self.edges = edges 
         self.cars = cars
+        
+    def generate_paths(self, num: int) -> list[list[Road]]:
+        """
+        Generates all paths for the vehicles of this traffic network
+        """
+        paths = []
+        start_ends = self.generate_start_end(num)
+        for start, end in start_ends:
+            paths.append(self.dfs(start, end))
+        return paths
 
     def generate_start_end(self, num_paths: int) -> set[tuple[Road, Road]]: 
         """Generates a set of start and end nodes, representing a series of desired starting and ending points for the vehicles in the network."""
@@ -56,7 +66,6 @@ class Traffic:
     
         parents = {}
             
-        start, end = p
         frontier = deque()
         frontier.append(start)
         explored = set()
@@ -68,7 +77,7 @@ class Traffic:
             else: 
                 explored.add(node)
                 for succ in node.outgoing:
-                    if succ not in explored: 
+                    if succ not in explored and succ not in frontier:
                         parents[succ] = node
                         frontier.append(succ)
         
@@ -82,6 +91,11 @@ class Traffic:
             node = parents[node]
         path.append(node)
         return path[::-1]
+    
+                
+
+            
+    
 
 
     
