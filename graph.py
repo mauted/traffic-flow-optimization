@@ -68,8 +68,6 @@ class Edge:
 
     def __init__(self, start: Road, end: Road):
         self.id = Edge.__COUNTER
-        Edge.__COUNTER += 1 
-        self.id = Edge.__COUNTER
         Edge.__COUNTER += 1
         self.start = start
         self.end = end
@@ -118,4 +116,4 @@ class Intersection:
         
 
 if __name__ == "__main__":
-    G = GraphGenerator(10)
+    G = RoadNetwork(10)

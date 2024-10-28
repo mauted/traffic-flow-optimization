@@ -41,7 +41,7 @@ class Traffic:
             while len(frontier) != 0: 
                 node = frontier.pop()
                 if node == end:
-                    return traceback(node, parents)
+                    return _traceback(node, parents)
                 else: 
                     explored.add(node)
                     for succ in node.outgoing:
