@@ -2,14 +2,36 @@ from __future__ import annotations
 from enum import Enum
 from collections import deque
 import random
+from util import partition_list
 
 random.seed(0)
 
 
 class TrafficLightAgent:
 
-    def __init__(self):
-        pass
+    def __init__(self, edges: list[Edge], schedule: None):
+        
+        """Initializes the traffic light agent with a series of edges, and a schedule, where
+        an schedule looks like:
+        [(list[Edge], time), (list[Edge], time), (list[Edge], time), ..., (list[Edge], time)]
+        and represents sequentially the subset of edges that are active, and the amount of time ticks it's active for. 
+        """
+        self.edges = edges
+        if not schedule:
+            self._randomize_schedules()
+        else:
+            self.schedule = schedule
+            
+        # determining the current traffic conditions for this traffic light agent at the start o
+        self.active_edges = self.schedule[0]
+        
+    def _randomize_schedules(self, min_time: int = 10, max_time: int = 60):
+        """Randomize a series of schedules for the edges given minimum and maximum time of a traffic light condition"""
+        shuffled = random.shuffle(self.edges.copy())
+        return [(partition, random.randint(min_time, max_time)) for partition in partition_list(shuffled)]    
+    
+    def update_active_edges(time: int):
+        """Updates the active edges of this traffic light agent """
 
 class Vehicle:
     
@@ -91,38 +113,7 @@ class Edge:
         pass
 
 class PreIntersection:
-
-__COUNTER = 0
-    
-    def __init__(self):
-        self.id = PreIntersection.__COUNTER
-        PreIntersection.__COUNTER += 1
-        self.outgoing = []
-        self.incoming = []
-    
-    def add_incoming(self, other):
-        self.incoming.append(other)
-    
-    def add_outgoing(self, other):
-        self.outgoing.append(other)
-    
-    @classmethod 
-    def reset(cls):
-        cls.__COUNTER = 0
-        
-    def __eq__(self, other):
-        if isinstance(other, PreIntersection):
-            return self.id == other.id
-        return False
-    
-    def __hash__(self):
-        return hash(self.id)
-    
-    def __repr__(self):
-        return str(self.id)
-    
-    def move_car(self, car: Vehicle):
-        pass
+    pass
 
 class Intersection:
 
@@ -146,18 +137,14 @@ class Intersection:
 
         nodes = {node: RoadSegment() for node in set(in_roads + out_roads)}
 
-
-
-        # constructing the nodes to the graph
-        in_roads, out_roads = [], []
-        for road in roads: 
-            if road == RoadSegmentType.IN:
-                in_roads.append(RoadSegment())            
-            elif road == RoadSegmentType.OUT:
-                out_roads.append(RoadSegment())
+        for node in nodes:
+            if node in in_roads:
+                in_roads.append(nodes[node])
+            elif node in out_roads:
+                out_roads.append(nodes[node])
             else:
-                out_roads.append(RoadSegment())
-                in_roads.append(RoadSegment())
+                in_roads.append(nodes[node])
+                out_roads.append(nodes[node]) 
 
         # constructing the connections
         edges = []
@@ -313,7 +300,7 @@ class RoadNetwork:
         while len(frontier) != 0: 
             node = frontier.pop()
             if node == end:
-                return self._traceback(node, parents)
+                return self.traceback(node, parents)
             else: 
                 explored.add(node)
                 for succ in node.outgoing:
@@ -323,7 +310,7 @@ class RoadNetwork:
         
         return None
     
-    def _traceback(self, node: RoadSegment, parents: dict[RoadSegment, RoadSegment]):
+    def traceback(self, node: RoadSegment, parents: dict[RoadSegment, RoadSegment]):
         """Traces back the path followed by the node in the parents dictionary"""
         path = []
         while node in parents: 
