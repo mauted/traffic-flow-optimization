@@ -1,11 +1,10 @@
-from simulation import Traffic
-from graph import Road
+from simulation import RoadNetwork, RoadSegment
 import random
 import pytest 
 
 @pytest.fixture(autouse=True)
 def reset_state():
-    Road.reset()
+    RoadSegment.reset()
     
 def numbers_to_letters(nodes):
     
@@ -13,18 +12,18 @@ def numbers_to_letters(nodes):
 
 def test_path_generation():
     
-    nodes = [Road() for _ in range(10)]
-    traffic = Traffic(nodes, [], [])
-    paths = traffic.generate_start_end(10)
+    nodes = [RoadSegment() for _ in range(10)]
+    traffic = RoadNetwork(nodes, [], [])
+    paths = traffic.generate_vehicle_endpoints(10)
     assert len(paths) == 10
     for path in paths:
         assert path[0] != path[1]
 
 def test_traceback():
     
-    nodes = [Road() for _ in range(12)]
+    nodes = [RoadSegment() for _ in range(12)]
     A, B, C, D, E, F, I, K, M, S, W, Z = nodes
-    traffic = Traffic(nodes, [], [])
+    traffic = RoadNetwork(nodes, [], [])
     parents = {
         B: A,
         C: A,
@@ -45,7 +44,7 @@ def test_traceback():
     
 def test_dfs(): 
     
-    nodes = [Road() for _ in range(10)]
+    nodes = [RoadSegment() for _ in range(10)]
     A, B, C, D, E, F, G, H, I, J = nodes
     edges = [
     (A, B),
@@ -66,7 +65,7 @@ def test_dfs():
         s.add_outgoing(t)
         t.add_incoming(s)
 
-    traffic = Traffic(nodes, edges, [])
+    traffic = RoadNetwork(nodes, edges, [])
     
     # test that the start and end are in the nodes, and that every edge in the path is in the list of edges
     # this guarantees that we have a feasible path through the traffic network 
