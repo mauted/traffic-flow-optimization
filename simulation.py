@@ -17,22 +17,22 @@ class TrafficLightAgent:
         """
         self.edges = edges
         if not schedule:
-            self._randomize_schedules()
+            self.generate_random_schedule()
         else:
             self.schedule = schedule
             
         # storing some constants that make it easier to make calculations
         self._period = sum(ticks for _, ticks in self.schedule)
-            
-        # determining the current traffic conditions for this traffic light agent at the start o
-        self.active_edges = self.schedule[0]
         
-    def _randomize_schedules(self, min_time: int = 10, max_time: int = 60):
+        # setting the current active edges, this should speed up time needed to update a traffic light at the cost of memory
+        self.active_edges = set(self.schedule[0][0])
+        
+    def generate_random_schedule(self, min_time: int = 10, max_time: int = 60):
         """Randomize a series of schedules for the edges given minimum and maximum time of a traffic light condition"""
         shuffled = random.shuffle(self.edges.copy())
         return [(partition, random.randint(min_time, max_time)) for partition in partition_list(shuffled)]    
     
-    def update_active_edges(self, time: int) -> list[Edge]:
+    def find_active_edges(self, time: int) -> list[Edge]:
         """Updates the active edges of this traffic light agent based on the given global tick"""
         relative_time = time % self._period
         for edges, interval in self.schedule:
@@ -41,6 +41,16 @@ class TrafficLightAgent:
             else:
                 self.schedule -= interval
         raise Exception("Active edges not found for this traffic agent, check that schedule is correct.")
+    
+    def tick(self, time: int):
+        """Changes the state of this traffic light agent and the edges it controls depending on the time"""
+        
+        next_actives = set(self.find_active_edges(time))
+        for edge in self.active_edges:
+            edge.active = False
+        for edge in self.next_actives:
+            edge.active = True
+        self.active_edges = next_actives
 
 
 class Vehicle:
@@ -102,6 +112,7 @@ class Edge:
         self.start.add_outgoing(self.end)
         self.end.add_incoming(self.start)
         # indicates whether this edge is active and allows vehicles to move on it
+        # NOTE: This behavior should change depending on the starting condition of the traffic
         self.active = True
 
     @classmethod 
