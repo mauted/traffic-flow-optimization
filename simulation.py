@@ -1,17 +1,16 @@
 from __future__ import annotations 
-from enum import Enum
 from collections import deque
 import random
 from util import partition_list
 
 random.seed(0)
 
-
 class TrafficLightAgent:
 
     def __init__(self, edges: list[Edge], schedule: None):
         
-        """Initializes the traffic light agent with a series of edges, and a schedule, where
+        """
+        Initializes the traffic light agent with a series of edges, and a schedule, where
         an schedule looks like:
         [(list[Edge], time), (list[Edge], time), (list[Edge], time), ..., (list[Edge], time)]
         and represents sequentially the subset of edges that are active, and the amount of time ticks it's active for. 
@@ -22,6 +21,9 @@ class TrafficLightAgent:
         else:
             self.schedule = schedule
             
+        # storing some constants that make it easier to make calculations
+        self._period = sum(ticks for _, ticks in self.schedule)
+            
         # determining the current traffic conditions for this traffic light agent at the start o
         self.active_edges = self.schedule[0]
         
@@ -30,8 +32,16 @@ class TrafficLightAgent:
         shuffled = random.shuffle(self.edges.copy())
         return [(partition, random.randint(min_time, max_time)) for partition in partition_list(shuffled)]    
     
-    def update_active_edges(time: int):
-        """Updates the active edges of this traffic light agent """
+    def update_active_edges(self, time: int) -> list[Edge]:
+        """Updates the active edges of this traffic light agent based on the given global tick"""
+        relative_time = time % self._period
+        for edges, interval in self.schedule:
+            if relative_time - interval < 0: 
+                return edges 
+            else:
+                self.schedule -= interval
+        raise Exception("Active edges not found for this traffic agent, check that schedule is correct.")
+
 
 class Vehicle:
     
