@@ -176,6 +176,10 @@ class Intersection:
                 edges.append(Edge(in_road, out_road))
 
         return in_roads, out_roads, edges
+    
+    # TODO: For time ticks, something like this
+    def tick(self, time):
+        self.agent.tick(time) # this would activate and deactivate some of the edges
 
 class RoadNetwork:
     """
@@ -186,6 +190,16 @@ class RoadNetwork:
         self.nodes = nodes
         self.edges = edges 
         self.vehicles = vehicles
+        self.time = 0
+        
+        
+    def tick(self):
+        """Ticks a time in this simulation of the road network"""
+        self.time += 1
+        # TODO: This I imagine is how we make the simulation "go", sort of like 'on_tick' for big bang in Racket, the idea that a tick that happens in the big simulation class (maybe that is this RoadNetwork class) would propagate the tick throughout the items in that road network. 
+        # change the traffic light conditions for this tick
+        # something like intersection.tick() for intersection in self.intersections
+        # something for vehicles to move 
 
     @staticmethod
     def _build_supergraph(num_nodes: int) -> RoadNetwork:
