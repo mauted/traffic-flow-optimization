@@ -5,6 +5,12 @@ import random
 
 random.seed(0)
 
+
+class TrafficLightAgent:
+
+    def __init__(self):
+        pass
+
 class Vehicle:
     
     __COUNTER = 0
@@ -15,16 +21,11 @@ class Vehicle:
         self.route = route
         Vehicle.__COUNTER += 1
 
-class RoadSegmentType(Enum):
-    IN = 0,
-    OUT = 1,
-    BOTH = 2
-
 class RoadSegment:
     
     __COUNTER = 0
     
-    def __init__(self, outgoing: list[RoadSegment] = [], incoming: list[RoadSegment] = [], duration: int = 30, capacity: int = 20):
+    def __init__(self, duration: int = 30, capacity: int = 20):
         self.id = RoadSegment.__COUNTER
         RoadSegment.__COUNTER += 1
         self.outgoing = []
@@ -68,6 +69,8 @@ class Edge:
         self.end = end
         self.start.add_outgoing(self.end)
         self.end.add_incoming(self.start)
+        # indicates whether this edge is active and allows vehicles to move on it
+        self.active = True
 
     @classmethod 
     def reset(cls):
@@ -87,25 +90,63 @@ class Edge:
     def move_car(self, car: Vehicle):
         pass
 
+class PreIntersection:
+
+__COUNTER = 0
+    
+    def __init__(self):
+        self.id = PreIntersection.__COUNTER
+        PreIntersection.__COUNTER += 1
+        self.outgoing = []
+        self.incoming = []
+    
+    def add_incoming(self, other):
+        self.incoming.append(other)
+    
+    def add_outgoing(self, other):
+        self.outgoing.append(other)
+    
+    @classmethod 
+    def reset(cls):
+        cls.__COUNTER = 0
+        
+    def __eq__(self, other):
+        if isinstance(other, PreIntersection):
+            return self.id == other.id
+        return False
+    
+    def __hash__(self):
+        return hash(self.id)
+    
+    def __repr__(self):
+        return str(self.id)
+    
+    def move_car(self, car: Vehicle):
+        pass
 
 class Intersection:
 
     __COUNTER = 0
 
-    def __init__(self, in_roads: list[RoadSegment], out_roads: list[RoadSegment], edges: list[Edge]): 
+    def __init__(self, template: PreIntersection): 
         self.id = Intersection.__COUNTER
         Intersection.__COUNTER += 1
-        self.in_roads = in_roads
-        self.out_roads = out_roads
-        self.edges = edges
+        self.in_roads, self.out_roads, self.edges = self.construct_intersection(template)
+        self.agent = TrafficLightAgent(self.edges)
 
     @staticmethod
-    def construct_intersection(roads: list[RoadSegmentType]) -> Intersection:
+    def construct_intersection(template: PreIntersection) -> tuple[list[RoadSegment], list[RoadSegment], list[Edge]]:
         """
         Takes an input of the form [IN, OUT, BOTH,...] and returns a constructed intersection
         with the specified number of roads. Each road going into the intersection connects to each 
         road going out of the intersection.
         """
+        in_roads = template.in_roads
+        out_roads = template.out_roads
+
+        nodes = {node: RoadSegment() for node in set(in_roads + out_roads)}
+
+
 
         # constructing the nodes to the graph
         in_roads, out_roads = [], []
@@ -126,7 +167,7 @@ class Intersection:
                 out_road.add_incoming(in_road)
                 edges.append(Edge(in_road, out_road))
 
-        return Intersection(in_roads, out_roads, edges)
+        return in_roads, out_roads, edges
 
 class RoadNetwork:
     """
@@ -205,6 +246,10 @@ class RoadNetwork:
                 E.append(Edge(start, end))
 
         return RoadNetwork(V, E)
+    
+    @staticmethod
+    def _build_complete_network():
+        pass
         
     def generate_vehicle_paths(self, num_paths: int) -> list[list[RoadSegment]]:
         """
@@ -227,9 +272,8 @@ class RoadNetwork:
     
     def find_paths(self, paths: set[tuple[RoadSegment, RoadSegment]]) -> list[list[RoadSegment]]:
         """
-        Finds a path with A* search through the traffic for each path in paths, and returns the list of roads representing the route that the car takes. 
+        Finds a path with DFS through the traffic for each path in paths, and returns the list of roads representing the route that the car takes. 
         Note that the path is not necessarily optimal, nor does it need to be. 
-        The heuristic here 
         """
         
         found_paths = []
@@ -254,6 +298,7 @@ class RoadNetwork:
                             frontier.append(succ)
             
             found_paths.append(None)
+        return found_paths
 
             
     def dfs(self, start: RoadSegment, end: RoadSegment) -> list[RoadSegment]:

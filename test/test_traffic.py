@@ -1,5 +1,4 @@
-from simulation import RoadNetwork
-from graph import RoadSegment
+from simulation import RoadNetwork, RoadSegment
 import random
 import pytest 
 
