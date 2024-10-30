@@ -92,7 +92,7 @@ class Edge:
 
 class PreIntersection:
 
-__COUNTER = 0
+    __COUNTER = 0
     
     def __init__(self):
         self.id = PreIntersection.__COUNTER
