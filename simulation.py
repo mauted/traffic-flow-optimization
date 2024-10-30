@@ -1,15 +1,57 @@
 from __future__ import annotations 
-from enum import Enum
 from collections import deque
 import random
+from util import partition_list
 
 random.seed(0)
 
-
 class TrafficLightAgent:
 
-    def __init__(self):
-        pass
+    def __init__(self, edges: list[Edge], schedule: None):
+        
+        """
+        Initializes the traffic light agent with a series of edges, and a schedule, where
+        an schedule looks like:
+        [(list[Edge], time), (list[Edge], time), (list[Edge], time), ..., (list[Edge], time)]
+        and represents sequentially the subset of edges that are active, and the amount of time ticks it's active for. 
+        """
+        self.edges = edges
+        if not schedule:
+            self.generate_random_schedule()
+        else:
+            self.schedule = schedule
+            
+        # storing some constants that make it easier to make calculations
+        self._period = sum(ticks for _, ticks in self.schedule)
+        
+        # setting the current active edges, this should speed up time needed to update a traffic light at the cost of memory
+        self.active_edges = set(self.schedule[0][0])
+        
+    def generate_random_schedule(self, min_time: int = 10, max_time: int = 60):
+        """Randomize a series of schedules for the edges given minimum and maximum time of a traffic light condition"""
+        shuffled = random.shuffle(self.edges.copy())
+        return [(partition, random.randint(min_time, max_time)) for partition in partition_list(shuffled)]    
+    
+    def find_active_edges(self, time: int) -> list[Edge]:
+        """Updates the active edges of this traffic light agent based on the given global tick"""
+        relative_time = time % self._period
+        for edges, interval in self.schedule:
+            if relative_time - interval < 0: 
+                return edges 
+            else:
+                self.schedule -= interval
+        raise Exception("Active edges not found for this traffic agent, check that schedule is correct.")
+    
+    def tick(self, time: int):
+        """Changes the state of this traffic light agent and the edges it controls depending on the time"""
+        
+        next_actives = set(self.find_active_edges(time))
+        for edge in self.active_edges:
+            edge.active = False
+        for edge in self.next_actives:
+            edge.active = True
+        self.active_edges = next_actives
+
 
 class Vehicle:
     
@@ -70,6 +112,7 @@ class Edge:
         self.start.add_outgoing(self.end)
         self.end.add_incoming(self.start)
         # indicates whether this edge is active and allows vehicles to move on it
+        # NOTE: This behavior should change depending on the starting condition of the traffic
         self.active = True
 
     @classmethod 
@@ -146,18 +189,14 @@ class Intersection:
 
         nodes = {node: RoadSegment() for node in set(in_roads + out_roads)}
 
-
-
-        # constructing the nodes to the graph
-        in_roads, out_roads = [], []
-        for road in roads: 
-            if road == RoadSegmentType.IN:
-                in_roads.append(RoadSegment())            
-            elif road == RoadSegmentType.OUT:
-                out_roads.append(RoadSegment())
+        for node in nodes:
+            if node in in_roads:
+                in_roads.append(nodes[node])
+            elif node in out_roads:
+                out_roads.append(nodes[node])
             else:
-                out_roads.append(RoadSegment())
-                in_roads.append(RoadSegment())
+                in_roads.append(nodes[node])
+                out_roads.append(nodes[node]) 
 
         # constructing the connections
         edges = []
@@ -168,6 +207,10 @@ class Intersection:
                 edges.append(Edge(in_road, out_road))
 
         return in_roads, out_roads, edges
+    
+    # TODO: For time ticks, something like this
+    def tick(self, time):
+        self.agent.tick(time) # this would activate and deactivate some of the edges
 
 class RoadNetwork:
     """
@@ -178,6 +221,16 @@ class RoadNetwork:
         self.nodes = nodes
         self.edges = edges 
         self.vehicles = vehicles
+        self.time = 0
+        
+        
+    def tick(self):
+        """Ticks a time in this simulation of the road network"""
+        self.time += 1
+        # TODO: This I imagine is how we make the simulation "go", sort of like 'on_tick' for big bang in Racket, the idea that a tick that happens in the big simulation class (maybe that is this RoadNetwork class) would propagate the tick throughout the items in that road network. 
+        # change the traffic light conditions for this tick
+        # something like intersection.tick() for intersection in self.intersections
+        # something for vehicles to move 
 
     @staticmethod
     def _build_supergraph(num_nodes: int) -> RoadNetwork:
@@ -313,7 +366,7 @@ class RoadNetwork:
         while len(frontier) != 0: 
             node = frontier.pop()
             if node == end:
-                return self._traceback(node, parents)
+                return self.traceback(node, parents)
             else: 
                 explored.add(node)
                 for succ in node.outgoing:
@@ -323,7 +376,7 @@ class RoadNetwork:
         
         return None
     
-    def _traceback(self, node: RoadSegment, parents: dict[RoadSegment, RoadSegment]):
+    def traceback(self, node: RoadSegment, parents: dict[RoadSegment, RoadSegment]):
         """Traces back the path followed by the node in the parents dictionary"""
         path = []
         while node in parents: 
