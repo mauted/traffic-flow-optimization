@@ -2,6 +2,8 @@ from __future__ import annotations
 from collections import deque
 import random
 from util import partition_list
+import networkx as nx
+from networkx import check_planarity
 
 random.seed(0)
 
@@ -233,9 +235,9 @@ class RoadNetwork:
         # something for vehicles to move 
 
     @staticmethod
-    def _build_supergraph(num_nodes: int) -> RoadNetwork:
+    def _build_supergraph(num_nodes: int, is_planar: bool = False) -> list[PreIntersection]:
         """
-        Constructs a densely connected directed graph with num_nodes intersections (nodes).
+        Constructs a randomly generated connected directed graph with num_nodes pre-intersection nodes.
         Each node is connected to multiple other nodes.
         """
 
@@ -243,66 +245,36 @@ class RoadNetwork:
             raise ValueError("Number of nodes must be at least 2")
 
         # Initialize nodes
-        V = [RoadSegment() for _ in range(num_nodes)]
-        E = []
+        pre_nodes = [PreIntersection() for _ in range(num_nodes)]
 
         # Connect every node with multiple others
-        for start in V:
+        for start in pre_nodes:
             # Set a target number of edges each node will have
             target_outgoing = random.randint(2, num_nodes - 1)
-            possible_ends = [node for node in V if node != start]
+            possible_ends = [node for node in pre_nodes if node != start]
             
             # Create outgoing edges to reach the target connectivity
             for end in random.sample(possible_ends, target_outgoing):
                 if end not in start.outgoing:
-                    E.append(Edge(start, end))
+                    start.add_outgoing(end)
+                    end.add_incoming(start)
 
-        return RoadNetwork(V, E)
+        return pre_nodes
     
     @staticmethod
-    def _build_planar_supergraph(num_nodes: int) -> RoadNetwork:
+    def build_complete_network(num_nodes: int, is_planar: bool = False) -> RoadNetwork:
         """
-        Constructs a planar directed graph with num_nodes intersections (nodes).
-        Uses a mesh-like structure to ensure planarity.
+        Generates the complete road network, from a given number of edges.
         """
-
-        if num_nodes < 2:
-            raise ValueError("Number of nodes must be at least 2")
-
-        # Initialize nodes
-        V = [RoadSegment() for _ in range(num_nodes)]
-        E = []
-
-        # To ensure planarity, we create a grid or mesh structure
-        side_length = int(num_nodes ** 0.5)  # Approximate side length for square mesh
-
-        # Add edges to form a planar mesh
-        for i in range(side_length):
-            for j in range(side_length):
-                current = i * side_length + j
-                if current >= num_nodes:
-                    break
-                
-                # Connect to the right neighbor if within bounds
-                if j < side_length - 1 and current + 1 < num_nodes:
-                    E.append(Edge(V[current], V[current + 1]))
-                
-                # Connect to the neighbor below if within bounds
-                if i < side_length - 1 and current + side_length < num_nodes:
-                    E.append(Edge(V[current], V[current + side_length]))
-
-        # Optional: Add a few more edges randomly to enhance connectivity while ensuring planarity
-        additional_edges = random.randint(1, num_nodes // 2)
-        for _ in range(additional_edges):
-            start, end = random.sample(V, 2)
-            if end not in start.outgoing and start not in end.incoming:
-                E.append(Edge(start, end))
-
-        return RoadNetwork(V, E)
-    
-    @staticmethod
-    def _build_complete_network():
-        pass
+        pre_intersections = RoadNetwork._build_supergraph(num_nodes, is_planar)
+        nodes = []
+        edges = []
+        for pre_int in pre_intersections:
+            in_roads, out_roads, inter_edges = Intersection.construct_intersection(pre_int)
+            nodes += in_roads + out_roads
+            edges += inter_edges
+        
+        return RoadNetwork(nodes, edges, vehicles=[])
         
     def generate_vehicle_paths(self, num_paths: int) -> list[list[RoadSegment]]:
         """

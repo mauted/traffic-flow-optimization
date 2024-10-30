@@ -2,6 +2,8 @@ from simulation import RoadNetwork, RoadSegment
 import random
 import pytest 
 
+random.seed(0)
+
 @pytest.fixture(autouse=True)
 def reset_state():
     RoadSegment.reset()
@@ -37,10 +39,10 @@ def test_traceback():
         W: K,
         Z: M
     }
-    assert traffic._traceback(W, parents) == [A, B, E, K, W]
-    assert traffic._traceback(F, parents) == [A, C, F]
-    assert traffic._traceback(Z, parents) == [A, C, F, M, Z]
-    assert traffic._traceback(S, parents) == [A, B, D, I, S]
+    assert traffic.traceback(W, parents) == [A, B, E, K, W]
+    assert traffic.traceback(F, parents) == [A, C, F]
+    assert traffic.traceback(Z, parents) == [A, C, F, M, Z]
+    assert traffic.traceback(S, parents) == [A, B, D, I, S]
     
 def test_dfs(): 
     
