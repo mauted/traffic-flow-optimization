@@ -15,7 +15,7 @@ def numbers_to_letters(nodes):
 def test_path_generation():
     
     nodes = [RoadSegment() for _ in range(10)]
-    traffic = RoadNetwork(nodes, [], [])
+    traffic = RoadNetwork(nodes, [], [], [])
     paths = traffic.generate_vehicle_endpoints(10)
     assert len(paths) == 10
     for path in paths:
@@ -25,7 +25,7 @@ def test_traceback():
     
     nodes = [RoadSegment() for _ in range(12)]
     A, B, C, D, E, F, I, K, M, S, W, Z = nodes
-    traffic = RoadNetwork(nodes, [], [])
+    traffic = RoadNetwork(nodes, [], [], [])
     parents = {
         B: A,
         C: A,
@@ -67,7 +67,7 @@ def test_dfs():
         s.add_outgoing(t)
         t.add_incoming(s)
 
-    traffic = RoadNetwork(nodes, edges, [])
+    traffic = RoadNetwork(nodes, edges, [], [])
     
     # test that the start and end are in the nodes, and that every edge in the path is in the list of edges
     # this guarantees that we have a feasible path through the traffic network 

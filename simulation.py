@@ -59,11 +59,17 @@ class Vehicle:
     
     __COUNTER = 0
 
-    def __init__(self, pos: RoadSegment, route: list[RoadSegment]):
+    def __init__(self, route: list[RoadSegment], road_net: RoadNetwork):
+        """
+        - route: the route that the vehicle will take in the road network
+        """
         self.id = Vehicle.__COUNTER
-        self.pos = pos 
-        self.route = route
         Vehicle.__COUNTER += 1
+        self.pos = 0
+        self.route = route
+        self.timer = route[self.pos].duration
+        self.road_net = road_net
+        self.route_complete = False        
 
 class RoadSegment:
     
@@ -83,6 +89,15 @@ class RoadSegment:
     
     def add_outgoing(self, road):
         self.outgoing.append(road)
+
+    def add_vehicle(self, vehicle: Vehicle):
+        if len(self.vehicles) < self.capacity:
+            self.vehicles.append(vehicle)
+        else:
+            raise Exception("Road segment is at capacity")
+        
+    def remove_vehicle(self, vehicle: Vehicle):
+        self.vehicles.remove(vehicle)
     
     @classmethod 
     def reset(cls):
@@ -98,9 +113,6 @@ class RoadSegment:
     
     def __repr__(self):
         return str(self.id)
-    
-    def move_car(self, car: Vehicle):
-        pass
     
 class Edge:
     
@@ -219,11 +231,12 @@ class RoadNetwork:
     The domain of the environment for the RL simulations.
     """
 
-    def __init__(self, nodes: list[RoadSegment], edges: list[Edge], vehicles: list[Vehicle]):
+    def __init__(self, nodes: list[RoadSegment], edges: list[Edge], intersections: list[Intersection], vehicles: list[Vehicle]):
         self.nodes = nodes
         self.edges = edges 
         self.vehicles = vehicles
         self.time = 0
+        self.completed_route_counter = 0
         
         
     def tick(self):
@@ -234,30 +247,90 @@ class RoadNetwork:
         # something like intersection.tick() for intersection in self.intersections
         # something for vehicles to move 
 
+        for intersection in self.intersections:
+            intersection.tick(self.time)
+
+
+        for vehicle in self.vehicles:
+
+            curr_seg = vehicle.route[vehicle.pos]
+            next_seg = vehicle.route[vehicle.pos + 1]
+
+            if vehicle.timer == 0:
+                if self.is_active_edge(curr_seg, next_seg):
+                    if len(next_seg.vehicles) < next_seg.capacity:
+                        curr_seg.remove_vehicle(vehicle)
+                        next_seg.add_vehicle(vehicle)
+                        vehicle.pos += 1
+                        vehicle.timer = vehicle.route[vehicle.pos].duration
+
+                if vehicle.pos == len(vehicle.route) - 1:
+                    self.completed_route_counter += 1
+                    self.remove_vehicle(vehicle)
+                    continue
+
+            else:
+                vehicle.timer -= 1
+
+
+
+    def add_vehicle(self, vehicle: Vehicle):
+        """
+        Adds a vehicle to the road network
+        """
+        self.vehicles.append(vehicle)
+
+    def remove_vehicle(self, vehicle: Vehicle):
+        """
+        Removes a vehicle from the road network
+        """
+        self.vehicles.remove(vehicle)
+
+    def is_active_edge(self, start: RoadSegment, end: RoadSegment) -> bool:
+        """
+        Returns whether the edge between start and end is active
+        """
+        for edge in self.edges:
+            if edge.start == start and edge.end == end:
+                return edge.active
+        return False
+
     @staticmethod
     def _build_supergraph(num_nodes: int, is_planar: bool = False) -> list[PreIntersection]:
         """
         Constructs a randomly generated connected directed graph with num_nodes pre-intersection nodes.
         Each node is connected to multiple other nodes.
         """
-
         if num_nodes < 2:
             raise ValueError("Number of nodes must be at least 2")
 
         # Initialize nodes
         pre_nodes = [PreIntersection() for _ in range(num_nodes)]
+        possible_nodes = pre_nodes[:]
 
         # Connect every node with multiple others
         for start in pre_nodes:
             # Set a target number of edges each node will have
             target_outgoing = random.randint(2, num_nodes - 1)
-            possible_ends = [node for node in pre_nodes if node != start]
+            possible_nodes.remove(start)
             
             # Create outgoing edges to reach the target connectivity
-            for end in random.sample(possible_ends, target_outgoing):
+            for end in random.sample(possible_nodes, target_outgoing):
                 if end not in start.outgoing:
                     start.add_outgoing(end)
                     end.add_incoming(start)
+
+            possible_nodes.append(start)
+
+        # After every node has outward connections, add edges to nodes without incoming connections
+        for end in pre_nodes:
+            if not end.incoming:
+                target_outgoing = random.randint(2, num_nodes - 1)
+                possible_nodes.remove(end)
+                for start in random.sample(possible_nodes, target_outgoing):
+                    start.add_outgoing(end)
+                    end.add_incoming(start)
+                possible_nodes.append(end)
 
         return pre_nodes
     
@@ -269,12 +342,19 @@ class RoadNetwork:
         pre_intersections = RoadNetwork._build_supergraph(num_nodes, is_planar)
         nodes = []
         edges = []
+        intersections = []
         for pre_int in pre_intersections:
-            in_roads, out_roads, inter_edges = Intersection.construct_intersection(pre_int)
+            intersection = Intersection(pre_int)
+            intersections.append(intersection)
+
+            in_roads = intersection.in_roads
+            out_roads = intersection.out_roads
+            inter_edges = intersection.edges
+
             nodes += in_roads + out_roads
             edges += inter_edges
         
-        return RoadNetwork(nodes, edges, vehicles=[])
+        return RoadNetwork(nodes=nodes, edges=edges, intersections=intersections, vehicles=[])
         
     def generate_vehicle_paths(self, num_paths: int) -> list[list[RoadSegment]]:
         """
