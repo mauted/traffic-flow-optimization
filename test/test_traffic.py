@@ -1,4 +1,4 @@
-from simulation import RoadNetwork, RoadSegment
+from road_network_parts import RoadNetwork, RoadSegment
 import random
 import pytest 
 
@@ -78,4 +78,13 @@ def test_dfs():
         assert route[-1] in nodes
         for i in range(1, len(route)):
             assert (route[i - 1], route[i]) in edges
+
+
+# def test_tick_network():
+#     road_net = RoadNetwork.build_complete_network(10)
+#     assert road_net.time == 0
+#     road_net.tick()
+
+#     assert road_net.time == 1
+    
     
