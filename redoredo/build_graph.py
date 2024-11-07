@@ -4,7 +4,6 @@ from collections import namedtuple
 import numpy as np
 from graph import Graph, Edge, Node
 
-Road = namedtuple('Road', ['capacity', 'time'])
 
 def random_adj_matrix(num_roads: int, min_weight: int = 1, max_weight: int = 10) -> np.array:
     random_matrix = np.randint(min_weight, max_weight, size=(num_roads, num_roads))
@@ -18,7 +17,7 @@ def make_random_graph(num_roads: int) -> Graph:
     adj_matrix = np.array(dtype=Road, shape=(num_roads, num_roads))
     
 
-def make_graph(adj_matrix: np.array) -> Graph:
+def make_graph(adj: list[list[int]]) -> Graph:
     """
     Makes a graph object based on the adjacency matrix of a weighted, directed graph.
     This method flips the definition of nodes and edges, such that nodes in the original graph G become edges in G', and edges in G become nodes in G'.
@@ -26,11 +25,30 @@ def make_graph(adj_matrix: np.array) -> Graph:
     nnodes = nodes in G', nedges = edges in G'
     """
     
-    assert adj_matrix.shape[0] == adj_matrix.shape[1]
 
-    # create the new nodes
-    num_nnodes = np.count_nonzero(adj_matrix)
-    nnodes = [Node() for _ in range(num_nnodes)]
+def connect(adj_list: dict[int, int], correspondence: dict[tuple[int, int], Node]) -> tuple[list[Node], set[Edge]]:
     
-    # establish connections based on the adjacency matrix
+    edges = set()
     
+    for key, value in adj_list.items():
+        for neighbor in value:
+            for node in adj_list[neighbor]:
+                from_node = correspondence[key, neighbor]
+                to_node = correspondence[neighbor, node]
+                edges.add(Edge(from_node, to_node))
+                from_node.add_outgoing(to_node)
+    
+    return correspondence.values(), edges
+    
+def preprocess(adj_matrix: np.array) -> tuple[dict[int, int], dict[tuple[int, int], Node]]:
+    
+    correspondence = {}
+    
+    n = adj_matrix.shape[0]
+    
+    adj_list = {i: [] for i in range(n)}
+    for i, j in zip(*np.where(adj_matrix != 0)):
+        adj_list[i].append(j)
+        correspondence[(i, j)] = Node()
+    
+    return adj_list, correspondence
