@@ -42,12 +42,6 @@ def make_spanning_tree(num_roads: int) -> np.array:
                 visited.add(neighbor)
                 queue.append(neighbor)
 
-    # Step 5: Add random unidirectional edges in the spanning tree
-    for i in range(5):
-        u, v = random.sample(range(num_roads), 2)
-        if spanning_tree[u][v] == 0:
-            spanning_tree[u][v] = 1
-
     return spanning_tree
 
 
@@ -69,7 +63,7 @@ def connect(adj_list: dict[int, int], correspondence: dict[tuple[int, int], Node
                 from_node.add_outgoing(to_node)
                 to_node.add_incoming(from_node)
     
-    return correspondence.values(), edges
+    return list(correspondence.values()), edges
     
 def preprocess(adj_matrix: np.array) -> tuple[dict[int, int], dict[tuple[int, int], Node]]:
     
