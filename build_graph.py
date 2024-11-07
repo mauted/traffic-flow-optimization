@@ -45,7 +45,7 @@ def connect(adj_list: dict[int, int], correspondence: dict[tuple[int, int], Node
                 from_node.add_outgoing(to_node)
                 to_node.add_incoming(from_node)
     
-    return correspondence.values(), edges
+    return list(correspondence.values()), edges
     
 def preprocess(adj_matrix: np.array) -> tuple[dict[int, int], dict[tuple[int, int], Node]]:
     
