@@ -42,6 +42,20 @@ def make_spanning_tree(num_roads: int) -> np.array:
                 visited.add(neighbor)
                 queue.append(neighbor)
 
+    # Step 5: Add some additional uni/bidirectional edges to the spanning tree
+    remaining_extra_edges = num_roads // 2
+    while remaining_extra_edges > 0:
+        u, v = random.sample(range(num_roads), 2)
+        added = False
+        if spanning_tree[u][v] == 0:
+            spanning_tree[u][v] = 1
+            added = True
+        if np.random.rand() < 0.5 and spanning_tree[v][u] == 0:
+            spanning_tree[v][u] = 1
+            added = True
+        if added:
+            remaining_extra_edges -= 1
+
     return spanning_tree
 
 
