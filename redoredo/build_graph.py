@@ -4,18 +4,27 @@ from collections import namedtuple
 import numpy as np
 from graph import Graph, Edge, Node
 
-Road = namedtuple('Road', ['capacity', 'time'])
-
 def random_adj_matrix(num_roads: int, min_weight: int = 1, max_weight: int = 10) -> np.array:
     random_matrix = np.randint(min_weight, max_weight, size=(num_roads, num_roads))
     return random_matrix
 
-def make_random_graph(num_roads: int) -> Graph:
-    """
-    Makes a randomized fully connected spanning tree with given number of nodes. This method will generate adjacency matrix,
-    and then ensure that the tree is fully connected by adding edges until it is connected.
-    """
-    adj_matrix = np.array(dtype=Road, shape=(num_roads, num_roads))
+def make_spanning_tree(num_roads: int) -> np.array:
+    adj_matrix = np.randint(0, 2, size=(num_roads, num_roads))
+    np.fill_diagonal(adj_matrix, 0)
+
+    # Perform BFS on a random root node to generate a spanning tree
+    root = np.random.randint(num_roads)
+    queue = [root]
+    visited = set()
+    visited.add(root)
+    while queue:
+        current = queue.pop(0)
+        for i in range(num_roads):
+            if adj_matrix[current][i] == 1 and i not in visited:
+                adj_matrix[current][i] = 0
+                visited.add(i)
+                queue.append(i)
+    return adj_matrix
     
 
 def make_graph(adj_matrix: np.array) -> Graph:
