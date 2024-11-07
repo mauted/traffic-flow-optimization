@@ -1,31 +1,55 @@
 """Generate a random directed graph via an adjacency matrix, build a spanning tree with its edges, add random edges until it hits an edge count, and output the resulting graph in the form of an adjacency matrix."""
 
-from collections import namedtuple
 import numpy as np
-from graph import Graph, Edge, Node
+from graph import Edge, Node
 
 def random_adj_matrix(num_roads: int, min_weight: int = 1, max_weight: int = 10) -> np.array:
     random_matrix = np.randint(min_weight, max_weight, size=(num_roads, num_roads))
     return random_matrix
 
-def make_spanning_tree(num_roads: int) -> np.array:
-    adj_matrix = np.randint(0, 2, size=(num_roads, num_roads))
-    np.fill_diagonal(adj_matrix, 0)
+import numpy as np
+import random
 
-    # Perform BFS on a random root node to generate a spanning tree
-    root = np.random.randint(num_roads)
+def make_spanning_tree(num_roads: int) -> np.array:
+    # Step 1: Initialize an empty adjacency matrix
+    adj_matrix = np.zeros((num_roads, num_roads), dtype=int)
+
+    # Step 2: Create a connected path (linear chain) to ensure all nodes are reachable
+    for i in range(num_roads - 1):
+        adj_matrix[i][i + 1] = 1
+        adj_matrix[i + 1][i] = 1
+
+    # Step 3: Randomly add additional edges to make the graph more complex
+    num_additional_edges = num_roads  # You can adjust this to control the sparsity
+    for _ in range(num_additional_edges):
+        u, v = random.sample(range(num_roads), 2)
+        adj_matrix[u][v] = 1
+        adj_matrix[v][u] = 1
+
+    # Step 4: Generate the spanning tree using BFS
+    spanning_tree = np.zeros((num_roads, num_roads), dtype=int)
+    root = random.randint(0, num_roads - 1)
     queue = [root]
     visited = set()
     visited.add(root)
+
     while queue:
         current = queue.pop(0)
-        for i in range(num_roads):
-            if adj_matrix[current][i] == 1 and i not in visited:
-                adj_matrix[current][i] = 0
-                visited.add(i)
-                queue.append(i)
-    return adj_matrix
-    
+        for neighbor in range(num_roads):
+            if adj_matrix[current][neighbor] == 1 and neighbor not in visited:
+                spanning_tree[current][neighbor] = 1
+                spanning_tree[neighbor][current] = 1  # Maintain undirected structure
+                visited.add(neighbor)
+                queue.append(neighbor)
+
+    # Step 5: Add random unidirectional edges in the spanning tree
+    for i in range(5):
+        u, v = random.sample(range(num_roads), 2)
+        if spanning_tree[u][v] == 0:
+            spanning_tree[u][v] = 1
+
+    return spanning_tree
+
 
 def make_graph(adj: list[list[int]]):
     adj_list, correspondence = preprocess(adj)
