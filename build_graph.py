@@ -27,7 +27,7 @@ def make_spanning_tree(num_roads: int) -> np.array:
     return adj_matrix
     
 
-def make_graph(adj: list[list[int]]) -> Graph:
+def make_graph(adj: list[list[int]]):
     adj_list, correspondence = preprocess(adj)
     return connect(adj_list, correspondence)
     
@@ -43,6 +43,7 @@ def connect(adj_list: dict[int, int], correspondence: dict[tuple[int, int], Node
                 to_node = correspondence[neighbor, node]
                 edges.add(Edge(from_node, to_node))
                 from_node.add_outgoing(to_node)
+                to_node.add_incoming(from_node)
     
     return correspondence.values(), edges
     

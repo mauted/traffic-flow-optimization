@@ -27,4 +27,4 @@ class Node:
 class Graph:
 
     def __init__(self, num_nodes, num_edges):
-        
+        pass
