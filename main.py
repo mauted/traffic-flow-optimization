@@ -1,4 +1,4 @@
-from simulation import RoadNetwork
+from old.simulation import RoadNetwork
 
 def main(num_nodes: int, num_edges: int, num_vehicles: int):
     # this generates a graph with all nodes and edges, a vehicle system, and intersections with traffic light agents

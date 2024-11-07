@@ -1,7 +1,7 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import random
-from graph import TrafficSupergraph
+from old.graph import TrafficSupergraph
 
 random.seed(0)
 

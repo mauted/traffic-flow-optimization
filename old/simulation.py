@@ -1,4 +1,4 @@
-from graph import RoadSegment, Edge, Intersection, Vehicle, PreIntersection
+from old.graph import RoadSegment, Edge, Intersection, Vehicle, PreIntersection
 import matplotlib.pyplot as plt
 import networkx as nx
 import random
