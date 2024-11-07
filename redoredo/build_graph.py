@@ -28,12 +28,8 @@ def make_spanning_tree(num_roads: int) -> np.array:
     
 
 def make_graph(adj: list[list[int]]) -> Graph:
-    """
-    Makes a graph object based on the adjacency matrix of a weighted, directed graph.
-    This method flips the definition of nodes and edges, such that nodes in the original graph G become edges in G', and edges in G become nodes in G'.
-    onodes = nodes in G, oedges = edges in G
-    nnodes = nodes in G', nedges = edges in G'
-    """
+    adj_list, correspondence = preprocess(adj)
+    return connect(adj_list, correspondence)
     
 
 def connect(adj_list: dict[int, int], correspondence: dict[tuple[int, int], Node]) -> tuple[list[Node], set[Edge]]:
