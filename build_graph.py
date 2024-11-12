@@ -2,13 +2,11 @@
 
 import numpy as np
 from graph import Edge, Node
+import random
 
 def random_adj_matrix(num_roads: int, min_weight: int = 1, max_weight: int = 10) -> np.array:
     random_matrix = np.randint(min_weight, max_weight, size=(num_roads, num_roads))
     return random_matrix
-
-import numpy as np
-import random
 
 def make_spanning_tree(num_roads: int) -> np.array:
     # Step 1: Initialize an empty adjacency matrix
