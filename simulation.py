@@ -45,9 +45,9 @@ class TrafficLight:
     def tick(self, time: int):
         if self.schedule_pos >= len(self.schedule):
             return
-        elapsed_time, active_edges = self.schedule[self.schedule_pos]
         if time >= elapsed_time:
             self.schedule_pos += 1
+        elapsed_time, active_edges = self.schedule[self.schedule_pos]
         self.active_edges = active_edges
     
     # def update_active_edges(self, time: int):

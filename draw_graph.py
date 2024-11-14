@@ -2,7 +2,7 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 
-from build_graph import make_spanning_tree
+from graph import make_spanning_tree
 
 def draw_graph_from_matrix(adj_matrix):
     # Create a directed graph from the adjacency matrix
