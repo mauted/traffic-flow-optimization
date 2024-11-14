@@ -15,6 +15,18 @@ def draw_graph_from_matrix(adj_matrix):
     plt.title("Spanning Tree")
     plt.show()
 
+def draw_graph_from_list(adj_list: dict):
+    
+    G = nx.DiGraph()
+    for node, neighbors in adj_list.items():
+        for neighbor in neighbors:
+            G.add_edge(node, neighbor)
+    
+    pos = nx.spring_layout(G) 
+    nx.draw(G, pos, with_labels=True, node_color="lightblue", node_size=500, font_size=10, arrows=True)
+    plt.title("Spanning Tree")
+    plt.show()
+
 
 if __name__ == "__main__":
     num_roads = 100

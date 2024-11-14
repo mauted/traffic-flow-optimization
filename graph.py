@@ -48,7 +48,8 @@ class Graph:
     def __init__(self, num_nodes, num_edges):
         tree = make_spanning_tree(num_nodes, num_edges)
         self.nodes, self.edges = make_graph(tree)
-
+        self.adj_list = post_graph_adj_list(self.nodes, self.edges)
+        
 
 # def generate_random_path(nodes) -> list[Node]:
 #     start, end = random.sample(nodes, 2)
@@ -145,13 +146,14 @@ def make_spanning_tree(num_roads: int, num_edges: int) -> np.array:
 
 def make_graph(adj: list[list[int]]):
     adj_list, correspondence = preprocess(adj)
-    return connect(adj_list, correspondence)
+    nodes, edges = connect(adj_list, correspondence)
+    return nodes, edges 
     
 
 def connect(adj_list: dict[int, int], correspondence: dict[tuple[int, int], Node]) -> tuple[list[Node], set[Edge]]:
     
     edges = set()
-    
+        
     for key, value in adj_list.items():
         for neighbor in value:
             for node in adj_list[neighbor]:
@@ -175,3 +177,14 @@ def preprocess(adj_matrix: np.array) -> tuple[dict[int, int], dict[tuple[int, in
         correspondence[(i, j)] = Node()
     
     return adj_list, correspondence
+
+
+def post_graph_adj_list(nodes, edges):
+    
+    adj_list = {node: [] for node in nodes}
+    
+    for start, end in edges:
+        if start in adj_list: 
+            adj_list[start].append(end)
+    
+    return adj_list
