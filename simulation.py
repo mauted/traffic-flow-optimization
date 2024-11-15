@@ -69,12 +69,13 @@ class TrafficLight:
 
 class Simulation:
     
-    def __init__(self, graph: Graph, roads: list[Road], cars: list[LightningMcQueen], agents: list[TrafficLight], total_time: int = 1200):
+    def __init__(self, graph: Graph, roads: list[Road], corr: dict[Node, Road], cars: list[LightningMcQueen], agents: list[TrafficLight], max_time: int = 1200):
         
-        self.TOTAL_TIME = total_time
+        self.MAX_TIME = max_time
         self.INITIAL_NUM_CARS = len(cars)
         self.graph = graph
         self.roads = roads 
+        self.corr = corr
         self.cars = cars
         self.agents = agents
         
@@ -140,13 +141,13 @@ class Simulation:
         
         # Set the layout once and reuse it
         if not hasattr(self, "pos"):
-            self.pos = nx.spring_layout(G)  # Only compute layout once
+            self.pos = nx.spring_layout(G, seed=0)  # Only compute layout once with a preset seed
         
         # Generate labels and colors based on road vehicles count
         labels = dict(zip([road.node.id for road in self.roads], [len(road.vehicles) for road in self.roads]))
         node_labels = {node: f"{labels[node.id]}" for node in G.nodes}
-        
-        node_colors = [plt.cm.RdYlGn(1 - labels[node.id] / self.INITIAL_NUM_CARS) for node in G.nodes]
+
+        node_colors = [plt.cm.RdYlGn(1 - labels[node.id] / self.corr[node].capacity) for node in G.nodes]
         
         # Draw the graph with the consistent layout
         plt.figure(figsize=(8, 6))
@@ -194,11 +195,11 @@ if __name__ == "__main__":
 
     random.seed(0)
 
-    TOTAL_TIME = 200
+    TOTAL_TIME = 100
     
     NUM_NODES = 5
     NUM_EDGES = 10
-    NUM_PATHS = 60
+    NUM_PATHS = 50
     
     graph = Graph(NUM_NODES, NUM_EDGES)
     roads = [Road(node, capacity=random.randint(10, 20), time=random.randint(5, 10)) for node in graph.nodes]
@@ -207,14 +208,19 @@ if __name__ == "__main__":
     
     lights = [TrafficLight(node) for node in graph.nodes]
         
-    sim = Simulation(graph, roads, cars, lights, TOTAL_TIME)
+    sim = Simulation(graph=graph, 
+                     roads=roads, 
+                     corr=corr, 
+                     cars=cars, 
+                     agents=lights, 
+                     max_time=TOTAL_TIME)
 
     # Remove all files in the graphs directory
     files = glob.glob('graphs/*')
     for f in files:
         os.remove(f)
 
-    while sim.time < sim.TOTAL_TIME:
+    while sim.time < sim.MAX_TIME:
         sim.tick()
         if sim.cars:
             sim.draw()
