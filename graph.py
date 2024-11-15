@@ -33,15 +33,6 @@ class Node:
     def __repr__(self):
         return str(self.id)
     
-class Road:
-    # vehicles
-    # capacity
-    # time
-    pass
-
-class Simulation:
-    # Contains a graph that is immutable
-    pass
     
 class Graph:
 

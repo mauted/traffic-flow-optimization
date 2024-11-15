@@ -1,5 +1,5 @@
 from __future__ import annotations
-from graph import Graph, Node, generate_random_path
+from graph import Graph, Node, generate_random_path, Edge
 from draw_graph import draw_graph_from_list
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -25,7 +25,8 @@ class Road:
 class TrafficLight:
     
     def __init__(self, node: Node, total_time: int, schedule = None):
-        self.edges = node.incoming + node.outgoing
+        
+        self.edges = self.get_edges(node)
         self.total_time = total_time
         if schedule == None:
             self.schedule = self.generate_random_schedule()
@@ -33,6 +34,16 @@ class TrafficLight:
             self.schedule = schedule
 
         self.schedule_pos = 0
+        _, active_edges = self.schedule[self.schedule_pos]
+        self.active_edges = active_edges
+        
+    def get_edges(self, node: Node) -> list[Edge]:
+        edges = []
+        for from_node in node.incoming:
+            edges.append(Edge(from_node, node))
+        for to_node in node.outgoing:
+            edges.append(Edge(node, to_node))
+        return edges 
 
     def generate_random_schedule(self, min_time: int = 10, max_time: int = 60):
         elapsed_time = 0
@@ -45,12 +56,14 @@ class TrafficLight:
         return out
 
     def tick(self, time: int):
+        breakpoint()
         elapsed_time, active_edges = self.schedule[self.schedule_pos]
         self.active_edges = active_edges
         if self.schedule_pos >= len(self.schedule):
-            return
+            raise 
         if time >= elapsed_time:
             self.schedule_pos += 1
+        breakpoint()
     
 
 class Simulation:
@@ -73,13 +86,13 @@ class Simulation:
 
     def is_active_edge(self, curr_seg: Road, next_seg: Road):
         for agent in self.agents:
-            if curr_seg in agent.active_edges and next_seg in agent.active_edges:
+            if Edge(curr_seg, next_seg) in agent.active_edges:
                 return True
         return False
     
     def tick(self): 
 
-        if self.time >= self.total_time:
+        if self.time >= self.total_time or len(self.cars) == 0:
             return
         
         self.time += 1
@@ -101,7 +114,7 @@ class Simulation:
                         car.pos += 1
                         car.timer = car.path[car.pos].duration
 
-                if car.pos == len(car.route) - 1:
+                if car.pos == len(car.path) - 1:
                     # TODO: FIGURE OUT WHAT TO DO WHEN A CAR FINISHES ITS ROUTE
                     self.remove_vehicle(car)
                     continue
@@ -109,6 +122,16 @@ class Simulation:
             else:
                 car.timer -= 1
                 
+    
+    def remove_vehicle(self, car: LightningMcQueen):
+        breakpoint()
+        # remove car from the simulation 
+        self.cars.remove(car)
+        # remove the car from the node it is on
+        where = car.where()
+        where.remove_mcqueen(car)
+
+    
     def draw(self):
                 
         G = nx.DiGraph()
@@ -140,7 +163,10 @@ class LightningMcQueen:
         self.path = path # set the car path
         self.pos = 0 # initialize car to the first road in the list of roads
         self.timer = self.path[self.pos].time # initialize the amount of time a car will remain on the nodes
-    
+        
+    def where(self) -> Road:
+        return self.path[self.pos]
+
         
 if __name__ == "__main__":
 
@@ -159,5 +185,4 @@ if __name__ == "__main__":
         
     sim = Simulation(graph, roads, cars, lights, TOTAL_TIME)
 
-    sim.draw()
-    breakpoint()
+    sim.tick()
