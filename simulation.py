@@ -1,9 +1,12 @@
 from __future__ import annotations
+import glob
+import os
 from graph import Graph, Node, generate_random_path, Edge
 from draw_graph import draw_graph_from_list
 import matplotlib.pyplot as plt
 import networkx as nx
 import random
+from util import create_gif_from_images
 
 class Road:
     
@@ -24,18 +27,14 @@ class Road:
 
 class TrafficLight:
     
-    def __init__(self, node: Node, total_time: int, schedule = None):
-        
+    def __init__(self, node: Node, period: int = 60, schedule = None):
         self.edges = self.get_edges(node)
-        self.total_time = total_time
+        self.period = period
         if schedule == None:
             self.schedule = self.generate_random_schedule()
         else:
             self.schedule = schedule
-
-        self.schedule_pos = 0
-        _, active_edges = self.schedule[self.schedule_pos]
-        self.active_edges = active_edges
+        self.active_edges = self.schedule[0][1]
         
     def get_edges(self, node: Node) -> list[Edge]:
         edges = []
@@ -45,32 +44,35 @@ class TrafficLight:
             edges.append(Edge(node, to_node))
         return edges 
 
-    def generate_random_schedule(self, min_time: int = 10, max_time: int = 60):
+    def generate_random_schedule(self, min_duration: int = 5, max_duration: int = 15):
         elapsed_time = 0
         out = []
-        while elapsed_time < self.total_time:
-            duration = random.randint(min_time, max_time)
+        while elapsed_time < self.period:
+            duration = random.randint(min_duration, max_duration)
             elapsed_time += duration
+            elapsed_time = min(elapsed_time, self.period)
             edge_subset = random.sample(self.edges, random.randint(1, len(self.edges)))
             out.append((elapsed_time, edge_subset))
         return out
 
     def tick(self, time: int):
-        breakpoint()
-        elapsed_time, active_edges = self.schedule[self.schedule_pos]
-        self.active_edges = active_edges
-        if self.schedule_pos >= len(self.schedule):
-            raise 
-        if time >= elapsed_time:
-            self.schedule_pos += 1
-        breakpoint()
+        """
+        Update the active edges based on the current simulation time.
+        `time` is the global time of the simulation.
+        """
+        mod_time = time % self.period
+        pos = 0
+        while pos < len(self.schedule) and mod_time >= self.schedule[pos][0]:
+            pos += 1
+        self.active_edges = self.schedule[pos][1]
     
 
 class Simulation:
     
     def __init__(self, graph: Graph, roads: list[Road], cars: list[LightningMcQueen], agents: list[TrafficLight], total_time: int = 1200):
         
-        self.total_time = total_time
+        self.TOTAL_TIME = total_time
+        self.INITIAL_NUM_CARS = len(cars)
         self.graph = graph
         self.roads = roads 
         self.cars = cars
@@ -86,14 +88,14 @@ class Simulation:
 
     def is_active_edge(self, curr_seg: Road, next_seg: Road):
         for agent in self.agents:
-            if Edge(curr_seg, next_seg) in agent.active_edges:
-                return True
+            # if Edge(curr_seg.node.id, next_seg.node.id) in agent.active_edges:
+            #     return True
+            for active_edge in agent.active_edges:
+                if curr_seg.node == active_edge.start and next_seg.node == active_edge.end:
+                    return True
         return False
     
     def tick(self): 
-
-        if self.time >= self.total_time or len(self.cars) == 0:
-            return
         
         self.time += 1
         
@@ -106,16 +108,14 @@ class Simulation:
             next_seg = car.path[car.pos + 1]
 
             if car.timer == 0:
-                # TODO Implement is_active_edge
                 if self.is_active_edge(curr_seg, next_seg):
                     if len(next_seg.vehicles) < next_seg.capacity:
-                        curr_seg.remove_vehicle(car)
-                        next_seg.add_vehicle(car)
+                        curr_seg.remove_mcqueen(car)
+                        next_seg.add_mcqueen(car)
                         car.pos += 1
-                        car.timer = car.path[car.pos].duration
+                        car.timer = car.path[car.pos].time
 
                 if car.pos == len(car.path) - 1:
-                    # TODO: FIGURE OUT WHAT TO DO WHEN A CAR FINISHES ITS ROUTE
                     self.remove_vehicle(car)
                     continue
 
@@ -124,7 +124,6 @@ class Simulation:
                 
     
     def remove_vehicle(self, car: LightningMcQueen):
-        breakpoint()
         # remove car from the simulation 
         self.cars.remove(car)
         # remove the car from the node it is on
@@ -133,23 +132,43 @@ class Simulation:
 
     
     def draw(self):
-                
+        # Create the graph structure
         G = nx.DiGraph()
         for node, neighbors in self.graph.adj_list.items():
             for neighbor in neighbors:
                 G.add_edge(node, neighbor)
         
-        pos = nx.spring_layout(G) 
+        # Set the layout once and reuse it
+        if not hasattr(self, "pos"):
+            self.pos = nx.spring_layout(G)  # Only compute layout once
         
+        # Generate labels and colors based on road vehicles count
         labels = dict(zip([road.node.id for road in self.roads], [len(road.vehicles) for road in self.roads]))
-                
         node_labels = {node: f"{labels[node.id]}" for node in G.nodes}
+        
+        node_colors = [plt.cm.RdYlGn(1 - labels[node.id] / self.INITIAL_NUM_CARS) for node in G.nodes]
+        
+        # Draw the graph with the consistent layout
         plt.figure(figsize=(8, 6))
+        nx.draw(G, self.pos, with_labels=False, node_color=node_colors, node_size=500, font_size=10, arrows=True)
+        nx.draw_networkx_labels(G, self.pos, labels=node_labels, font_size=10, font_weight="bold", font_color="black")
         
-        nx.draw(G, pos, with_labels=False, node_color="lightblue", node_size=500, font_size=10, arrows=True)
-        nx.draw_networkx_labels(G, pos, labels=node_labels, font_size=10, font_weight="bold", font_color="black")
+        # Add text in the top-left corner with time step and cars remaining
+        cars_remaining = sum(labels.values())
+        plt.text(
+            0.01, 0.99,  # Relative coordinates for text (top-left)
+            f"Time Step: {self.time}\nCars Remaining: {cars_remaining}",
+            transform=plt.gca().transAxes,  # Transform relative to axes
+            fontsize=12,
+            verticalalignment="top",
+            bbox=dict(facecolor="white", alpha=0.8, edgecolor="black")
+        )
         
-        plt.show()
+        # Title and save the plot
+        plt.title(f"Simulation Time: {self.time}")
+        plt.savefig(f"graphs/simulation_time_{self.time}.png")
+
+
             
 
 class LightningMcQueen:
@@ -166,23 +185,40 @@ class LightningMcQueen:
         
     def where(self) -> Road:
         return self.path[self.pos]
+    
+    def has_completed_path(self):
+        return self.pos == len(self.path) - 1
 
         
 if __name__ == "__main__":
 
-    TOTAL_TIME = 1200
+    random.seed(0)
+
+    TOTAL_TIME = 200
     
     NUM_NODES = 5
     NUM_EDGES = 10
-    NUM_PATHS = 10
+    NUM_PATHS = 60
     
     graph = Graph(NUM_NODES, NUM_EDGES)
-    roads = [Road(node, random.randint(10, 20), random.randint(10, 20)) for node in graph.nodes]
+    roads = [Road(node, capacity=random.randint(10, 20), time=random.randint(5, 10)) for node in graph.nodes]
     corr = dict(zip(graph.nodes, roads))
     cars = [LightningMcQueen(generate_random_path(roads, corr)) for _ in range(NUM_PATHS)]
     
-    lights = [TrafficLight(node, total_time=TOTAL_TIME) for node in graph.nodes]
+    lights = [TrafficLight(node) for node in graph.nodes]
         
     sim = Simulation(graph, roads, cars, lights, TOTAL_TIME)
 
-    sim.tick()
+    # Remove all files in the graphs directory
+    files = glob.glob('graphs/*')
+    for f in files:
+        os.remove(f)
+
+    while sim.time < sim.TOTAL_TIME:
+        sim.tick()
+        if sim.cars:
+            sim.draw()
+
+    create_gif_from_images("graphs", "output.gif", duration=100)
+
+    

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from simulation import Road
 
-Edge = namedtuple('Edge', ['start', 'end'])
+Edge = namedtuple('Edge', ['start', 'end']) # The tuple entries are Nodes.
 
 class Node:
     

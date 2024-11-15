@@ -1,5 +1,4 @@
-from graph import Node
-from build_graph import connect, preprocess
+from graph import Node, connect, preprocess
 import numpy as np
 import pytest
 

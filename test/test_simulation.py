@@ -1,4 +1,7 @@
+import random
+from graph import generate_random_path
 import pytest
+from simulation import LightningMcQueen, Road, TrafficLight
 
 # Constants
 TOTAL_TIME = 1200
@@ -16,15 +19,17 @@ def graph():
 @pytest.fixture
 def simulation(graph):
     from simulation import Simulation
-    return Simulation(graph, TOTAL_TIME, NUM_PATHS)
-
-# Test that the graph is initialized correctly
-def test_graph_init(graph):
-    assert len(graph.nodes) == NUM_NODES
-    assert len(graph.edges) == NUM_EDGES
+    roads = [Road(node, random.randint(10, 20), random.randint(1, 2)) for node in graph.nodes]
+    corr = dict(zip(graph.nodes, roads))
+    cars = [LightningMcQueen(generate_random_path(roads, corr)) for _ in range(NUM_PATHS)]
+    
+    lights = [TrafficLight(node) for node in graph.nodes]
+        
+    return Simulation(graph, roads, cars, lights, TOTAL_TIME)
 
 # Test that the simulation is initialized correctly
 def test_simulation_init(simulation):
-    assert simulation.total_time == TOTAL_TIME
+    assert simulation.TOTAL_TIME == TOTAL_TIME
     assert len(simulation.roads) == len(simulation.graph.nodes)
     assert len(simulation.cars) == NUM_PATHS
+
