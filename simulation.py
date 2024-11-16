@@ -44,14 +44,14 @@ class TrafficLight:
             edges.append(Edge(node, to_node))
         return edges 
 
-    def generate_random_schedule(self, min_duration: int = 5, max_duration: int = 15):
+    def generate_random_schedule(self, min_duration: int = 5, max_duration: int = 15) -> list[tuple[int, set[Edge]]]:
         elapsed_time = 0
         out = []
         while elapsed_time < self.period:
             duration = random.randint(min_duration, max_duration)
             elapsed_time += duration
             elapsed_time = min(elapsed_time, self.period)
-            edge_subset = random.sample(self.edges, random.randint(1, len(self.edges)))
+            edge_subset = set(random.sample(self.edges, random.randint(1, len(self.edges))))
             out.append((elapsed_time, edge_subset))
         return out
 
@@ -86,15 +86,18 @@ class Simulation:
         for car in cars:
             start = car.path[0]
             start.add_mcqueen(car)
+        
+        # correspond each edge to a traffic light agent for efficiency
+        self.edge_to_agent: dict[Edge, TrafficLight] = {}
+        for agent in self.agents: 
+            for edge in agent.edges:
+                self.edge_to_agent[edge] = agent
 
     def is_active_edge(self, curr_seg: Road, next_seg: Road):
-        for agent in self.agents:
-            # if Edge(curr_seg.node.id, next_seg.node.id) in agent.active_edges:
-            #     return True
-            for active_edge in agent.active_edges:
-                if curr_seg.node == active_edge.start and next_seg.node == active_edge.end:
-                    return True
-        return False
+        curr_node = curr_seg.node
+        next_node = next_seg.node
+        agent = self.edge_to_agent[Edge(curr_node, next_node)]
+        return Edge(curr_node, next_node) in agent.active_edges
     
     def tick(self): 
         
@@ -169,8 +172,6 @@ class Simulation:
         plt.title(f"Simulation Time: {self.time}")
         plt.savefig(f"graphs/simulation_time_{self.time}.png")
 
-
-            
 
 class LightningMcQueen:
     
