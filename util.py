@@ -21,6 +21,10 @@ def create_images_from_gif(input_gif, image_path_folder):
         image.save(os.path.join(image_path_folder, f"frame_{i}.png"))
 
 def create_gif_from_images(image_folder, output_gif_path, duration=500):
+    """
+    ## Params
+    `duration`: time duration of each frame, in milliseconds
+    """
     images = [Image.open(image_path) for image_path in get_image_paths_in_folder(image_folder)]
     images[0].save(
         output_gif_path,

@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import random
 from util import create_gif_from_images
+from tqdm import tqdm
 
 class Road:
     
@@ -217,11 +218,14 @@ if __name__ == "__main__":
                      max_time=TOTAL_TIME)
 
     # Remove all files in the graphs directory
+    if not os.path.exists('graphs'):
+        os.makedirs('graphs')
+
     files = glob.glob('graphs/*')
     for f in files:
         os.remove(f)
 
-    while sim.time < sim.MAX_TIME:
+    for _ in tqdm(range(sim.MAX_TIME)):
         sim.tick()
         if sim.cars:
             sim.draw()
