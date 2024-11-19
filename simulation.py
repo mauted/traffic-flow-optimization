@@ -98,7 +98,10 @@ class Simulation:
         agent = self.edge_to_agent[Edge(curr_node, next_node)]
         return Edge(curr_node, next_node) in agent.active_edges
     
+    
     def tick(self): 
+        
+        congestion = 0
         
         self.time += 1
         
@@ -117,6 +120,9 @@ class Simulation:
                         next_seg.add_mcqueen(car)
                         car.pos += 1
                         car.timer = car.path[car.pos].time
+                    else:
+                        # number of cars that could not move forward due to a node being at full capacity
+                        congestion += 1 
 
                 if car.pos == len(car.path) - 1:
                     self.remove_vehicle(car)
@@ -124,6 +130,8 @@ class Simulation:
 
             else:
                 car.timer -= 1
+                
+        return congestion
                 
     
     def remove_vehicle(self, car: LightningMcQueen):
@@ -170,7 +178,7 @@ class Simulation:
         # Title and save the plot
         plt.title(f"Simulation Time: {self.time}")
         plt.savefig(f"graphs/simulation_time_{self.time}.png")
-
+        plt.close()
 
 class LightningMcQueen:
     
@@ -195,11 +203,11 @@ if __name__ == "__main__":
 
     random.seed(0)
 
-    TOTAL_TIME = 100
+    TOTAL_TIME = 500
     
-    NUM_NODES = 5
-    NUM_EDGES = 10
-    NUM_PATHS = 50
+    NUM_NODES = 10
+    NUM_EDGES = 20
+    NUM_PATHS = 200
     
     graph = Graph(NUM_NODES, NUM_EDGES)
     roads = [Road(node, capacity=random.randint(10, 20), time=random.randint(5, 10)) for node in graph.nodes]
@@ -223,8 +231,10 @@ if __name__ == "__main__":
     for f in files:
         os.remove(f)
 
-    for _ in tqdm(range(sim.MAX_TIME)):
-        sim.tick()
+    pbar = tqdm(range(sim.MAX_TIME), desc="Simulation", postfix={"Congestion": 0})
+    for _ in pbar:
+        congestion = sim.tick()
+        pbar.set_postfix({"Congestion": congestion}) 
         if sim.cars:
             sim.draw()
 
