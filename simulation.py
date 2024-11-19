@@ -1,12 +1,13 @@
 from __future__ import annotations
 import glob
 import os
+import numpy as np
 from graph import Graph, Node, generate_random_path, Edge
 from draw_graph import draw_graph_from_list
 import matplotlib.pyplot as plt
 import networkx as nx
 import random
-from util import create_gif_from_images
+from util import create_gif_from_images, partition_list, partition_int
 from tqdm import tqdm
 
 class Road:
@@ -35,7 +36,11 @@ class TrafficLight:
             self.schedule = self.generate_random_schedule()
         else:
             self.schedule = schedule
-        self.active_edges = self.schedule[0][1]
+        
+        # set the active ed
+        self.index = 0
+        self.active_edges = self.schedule[self.index][1]
+        self.time_left = self.schedule[self.index][0]
         
     def get_edges(self, node: Node) -> list[Edge]:
         edges = []
@@ -45,28 +50,21 @@ class TrafficLight:
             edges.append(Edge(node, to_node))
         return edges 
 
-    def generate_random_schedule(self, possible_durations: list[int]) -> list[tuple[int, set[Edge]]]:
-        elapsed_time = 0
-        out = []
-        while elapsed_time < self.period:
-            duration = random.choice(possible_durations)
-            elapsed_time += duration
-            elapsed_time = min(elapsed_time, self.period)
-            edge_subset = set(random.sample(self.edges, random.randint(1, len(self.edges))))
-            out.append((elapsed_time, edge_subset))
-        return out
+    def generate_random_schedule(self) -> list[tuple[int, set[Edge]]]:
+        partitions = partition_list(self.edges, 1)
+        times = partition_int(int(self.period / 10), len(partitions))
+        schedule = [(time * 10, partition) for time, partition in zip(times, partitions)]
+        return schedule 
 
-    def tick(self, time: int):
+    def tick(self):
         """
         Update the active edges based on the current simulation time.
-        `time` is the global time of the simulation.
         """
-        mod_time = time % self.period
-        pos = 0
-        while pos < len(self.schedule) and mod_time >= self.schedule[pos][0]:
-            pos += 1
-        self.active_edges = self.schedule[pos][1]
-    
+        if self.time_left == 0:
+            self.index = (self.index + 1) % len(self.schedule)
+            self.next_time, self.active_edges = self.schedule[self.index]
+        else:
+            self.time_left -= 1 
 
 class Simulation:
     
@@ -105,7 +103,7 @@ class Simulation:
         self.time += 1
         
         for light in self.agents:
-            light.tick(self.time)
+            light.tick()
             
         for car in self.cars:
             
@@ -207,7 +205,7 @@ if __name__ == "__main__":
     roads = [Road(node, capacity=random.randint(10, 20), time=random.randint(5, 10)) for node in graph.nodes]
     corr = dict(zip(graph.nodes, roads))
     cars = [LightningMcQueen(generate_random_path(roads, corr)) for _ in range(NUM_PATHS)]
-    
+        
     lights = [TrafficLight(node) for node in graph.nodes]
         
     sim = Simulation(graph=graph, 

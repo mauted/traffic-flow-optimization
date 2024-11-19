@@ -1,4 +1,5 @@
 import imageio
+import random
 from PIL import Image
 import os
 
@@ -46,6 +47,28 @@ def get_image_paths_in_folder(folder_path):
 def change_gif_framerate(input_gif, output_gif, duration):
     create_images_from_gif(input_gif, "frames")
     create_gif_from_images("frames", output_gif, duration)
+    
+    
+def partition_list(lst, min_size=1):
+    """Randomly split the list into subsets of some minimum size."""
+    
+    total_length = len(lst)
+    splits = []
+    
+    while total_length > 0:
+        subset_size = random.randint(min_size, total_length)
+        splits.append(lst[:subset_size])
+        lst = lst[subset_size:]
+        total_length -= subset_size
+        
+    return splits
+
+def partition_int(n, k):
+    if k == 1:
+        return [n]
+    splits = sorted(random.sample(range(1, n), k - 1))
+    sizes = [splits[0]] + [splits[i] - splits[i - 1] for i in range(1, k - 1)] + [n - splits[-1]]
+    return sizes 
 
 if __name__ == "__main__":
     change_gif_framerate("output.gif", "output.gif", 100)
