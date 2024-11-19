@@ -45,11 +45,11 @@ class TrafficLight:
             edges.append(Edge(node, to_node))
         return edges 
 
-    def generate_random_schedule(self, min_duration: int = 5, max_duration: int = 15) -> list[tuple[int, set[Edge]]]:
+    def generate_random_schedule(self, possible_durations: list[int]) -> list[tuple[int, set[Edge]]]:
         elapsed_time = 0
         out = []
         while elapsed_time < self.period:
-            duration = random.randint(min_duration, max_duration)
+            duration = random.choice(possible_durations)
             elapsed_time += duration
             elapsed_time = min(elapsed_time, self.period)
             edge_subset = set(random.sample(self.edges, random.randint(1, len(self.edges))))
