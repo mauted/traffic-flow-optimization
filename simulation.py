@@ -9,6 +9,9 @@ import networkx as nx
 import random
 from util import create_gif_from_images, partition_list, partition_int
 from tqdm import tqdm
+from collections import namedtuple
+
+Observation = namedtuple("Observation", ["incoming", "outgoing", "congestion"])
 
 class Road:
     
@@ -19,6 +22,10 @@ class Road:
         self.id = node.id
         self.capacity = capacity 
         self.time = time
+        
+        self.reset()
+        
+    def reset(self):
         self.vehicles = []
     
     def add_mcqueen(self, car: LightningMcQueen):
@@ -30,17 +37,16 @@ class Road:
 class TrafficLight:
     
     def __init__(self, node: Node, period: int = 60, schedule = None):
-        self.edges = self.get_edges(node)
+        self.id = node.id
+        self.node = node
+        self.edges = self.get_edges(self.node)
         self.period = period
-        if schedule == None:
+        if schedule == None: 
             self.schedule = self.generate_random_schedule()
         else:
             self.schedule = schedule
         
-        # set the active ed
-        self.index = 0
-        self.active_edges = self.schedule[self.index][1]
-        self.time_left = self.schedule[self.index][0]
+        self.reset()
         
     def get_edges(self, node: Node) -> list[Edge]:
         edges = []
@@ -55,16 +61,22 @@ class TrafficLight:
         times = partition_int(int(self.period / 10), len(partitions))
         schedule = [(time * 10, partition) for time, partition in zip(times, partitions)]
         return schedule 
+    
+    def reset(self):
+        self.index = 0
+        self.time_left, self.active_edges = self.schedule[self.index]
 
     def tick(self):
         """
         Update the active edges based on the current simulation time.
         """
+        
         if self.time_left == 0:
             self.index = (self.index + 1) % len(self.schedule)
             self.next_time, self.active_edges = self.schedule[self.index]
         else:
-            self.time_left -= 1 
+            self.time_left -= 1
+        
 
 class Simulation:
     
@@ -78,19 +90,48 @@ class Simulation:
         self.cars = cars
         self.agents = agents
         
-        # set variables to be the start of the simulation
-        self.time = 0
-        
-        # add mcqueens here 
-        for car in cars:
-            start = car.path[0]
-            start.add_mcqueen(car)
+        self.finished_cars = []
         
         # correspond each edge to a traffic light agent for efficiency
         self.edge_to_agent: dict[Edge, TrafficLight] = {}
+        self.node_to_agent: dict[Node, TrafficLight] = {}
         for agent in self.agents: 
+            self.node_to_agent[agent.node] = agent
             for edge in agent.edges:
                 self.edge_to_agent[edge] = agent
+                        
+        self.time = 0
+        
+        for car in self.cars:
+            car.reset()
+            
+    def update_schedule(self, schedule: dict[TrafficLight, list[tuple[int, set[Edge]]]]):
+        for agent, sched in schedule.items():
+            agent.schedule = sched
+
+            
+    def done(self):
+        if self.time >= self.MAX_TIME or self.cars == []:
+            return True
+        else:
+            return False 
+            
+    def reset(self):
+        
+        self.time = 0
+
+        for road in self.roads: 
+            road.reset()
+
+        self.cars = self.finished_cars[:]
+        for car in self.cars:
+            car.reset()
+
+        # reset agents 
+        for agent in self.agents:
+            agent.reset()
+        
+        return self.observation()
 
     def is_active_edge(self, curr_seg: Road, next_seg: Road):
         curr_node = curr_seg.node
@@ -98,21 +139,47 @@ class Simulation:
         agent = self.edge_to_agent[Edge(curr_node, next_node)]
         return Edge(curr_node, next_node) in agent.active_edges
     
-    
+
+    def observation(self) -> dict[TrafficLight, Observation]:
+        
+        incoming: dict[TrafficLight, int] = {}
+        outgoing: dict[TrafficLight, int] = {}
+        light_congestion: dict[TrafficLight, int] = {}
+        
+        for light in self.agents:
+            light_congestion[light] = len(self.corr[light.node].vehicles)
+            
+        for car in self.cars:
+            curr_seg = car.path[car.pos]
+            next_seg = car.path[car.pos + 1]
+            # calculate incoming and outgoing for each
+            curr_agent = self.node_to_agent(curr_seg.node)
+            next_agent = self.node_to_agent(next_seg.node)
+            outgoing[curr_agent] = outgoing.get(curr_agent, 0) + 1
+            incoming[next_agent] = incoming.get(next_agent, 0) + 1
+
+        # put together the observation
+        observations = {} 
+        for agent in self.agents:
+            observations[agent] = Observation(incoming[agent], 
+                                              outgoing[agent], 
+                                              light_congestion[agent])
+            
+        return observations
+            
     def tick(self): 
         
-        congestion = 0
-        
+        total_congestion = 0 # total congestion of the whole network
         self.time += 1
         
         for light in self.agents:
             light.tick()
-            
+        
         for car in self.cars:
-            
+                        
             curr_seg = car.path[car.pos]
             next_seg = car.path[car.pos + 1]
-
+            
             if car.timer == 0:
                 if self.is_active_edge(curr_seg, next_seg):
                     if len(next_seg.vehicles) < next_seg.capacity:
@@ -122,19 +189,20 @@ class Simulation:
                         car.timer = car.path[car.pos].time
                     else:
                         # number of cars that could not move forward due to a node being at full capacity
-                        congestion += 1 
+                        total_congestion += 1 
 
                 if car.pos == len(car.path) - 1:
                     self.remove_vehicle(car)
                     continue
 
             else:
-                car.timer -= 1
-                
-        return congestion
+                car.timer -= 1        
+                            
+        return total_congestion
                 
     
     def remove_vehicle(self, car: LightningMcQueen):
+        self.finished_cars.append(car)
         # remove car from the simulation 
         self.cars.remove(car)
         # remove the car from the node it is on
@@ -189,9 +257,15 @@ class LightningMcQueen:
         self.id = LightningMcQueen.__COUNTER
         LightningMcQueen.__COUNTER += 1
         self.path = path # set the car path
+        self.reset()
+    
+    def reset(self):
         self.pos = 0 # initialize car to the first road in the list of roads
         self.timer = self.path[self.pos].time # initialize the amount of time a car will remain on the nodes
-        
+
+        road = self.path[self.pos]
+        road.add_mcqueen(self)
+    
     def where(self) -> Road:
         return self.path[self.pos]
     
@@ -203,11 +277,11 @@ if __name__ == "__main__":
 
     random.seed(0)
 
-    TOTAL_TIME = 500
+    TOTAL_TIME = 100
     
     NUM_NODES = 10
     NUM_EDGES = 20
-    NUM_PATHS = 200
+    NUM_PATHS = 100
     
     graph = Graph(NUM_NODES, NUM_EDGES)
     roads = [Road(node, capacity=random.randint(10, 20), time=random.randint(5, 10)) for node in graph.nodes]

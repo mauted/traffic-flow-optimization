@@ -1,21 +1,23 @@
 import gym
 from gym import spaces
 import numpy as np
+from simulation import Simulation
 
 class TrafficEnvironment(gym.Env):
     
-    def __init__(self):
+    def __init__(self, sim: Simulation):
         
         super(TrafficEnvironment, self).__init__()
         
+        self.sim = sim
+        
         self.action_space = spaces.Discrete(3)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(4,), dtype=np.float32)        
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(4,), dtype=np.float32) 
         self.state = None
 
     def reset(self):
         """Reset the environment to an initial state."""
-        self.state = np.random.uniform(low=0, high=1, size=(4,))
-        return self.state  # Return the initial observation
+        return self.sim.reset()
 
     def step(self, action):
         """
@@ -26,13 +28,13 @@ class TrafficEnvironment(gym.Env):
         - done: whether the episode has ended
         - info: additional info (optional)
         """
-        # Example logic:
-        self.state = np.random.uniform(low=0, high=1, size=(4,))
-        reward = action  # Example reward logic
-        done = np.random.rand() > 0.95  # Randomly end episode
-        info = {}  # Additional info
         
-        return self.state, reward, done, info
+        self.sim.update_schedule(action)
+        observation = self.sim.observation()
+        reward = self.sim.tick()
+        done = self.sim.done()
+        
+        return observation, reward, done, None
 
     def render(self, mode='human'):
         """Optional: Visualize the environment."""
