@@ -1,9 +1,7 @@
 from __future__ import annotations
 import glob
 import os
-import numpy as np
 from graph import Graph, Node, generate_random_path, Edge
-from draw_graph import draw_graph_from_list
 import matplotlib.pyplot as plt
 import networkx as nx
 import random
@@ -36,10 +34,11 @@ class Road:
 
 class TrafficLight:
     
-    def __init__(self, node: Node, period: int = 60, schedule = None):
+    def __init__(self, node: Node, partitions: int = 4, period: int = 60, schedule = None):
         self.id = node.id
+        self.partitions = partitions
         self.node = node
-        self.edges = self.get_edges(self.node)
+        self.edges, self.conversion = self.get_edges(self.node)
         self.period = period
         if schedule == None: 
             self.schedule = self.generate_random_schedule()
@@ -50,17 +49,30 @@ class TrafficLight:
         
     def get_edges(self, node: Node) -> list[Edge]:
         edges = []
+        conversion = {}
         for from_node in node.incoming:
-            edges.append(Edge(from_node, node))
+            edge = Edge(from_node, node)
+            edges.append(edge)
+            conversion[(from_node.id, node.id)] = edge
         for to_node in node.outgoing:
-            edges.append(Edge(node, to_node))
-        return edges 
+            edge = Edge(node, to_node)
+            edges.append(edge)
+            conversion[(node.id, to_node.id)] = edge
+        return edges, conversion
 
     def generate_random_schedule(self) -> list[tuple[int, set[Edge]]]:
-        partitions = partition_list(self.edges, 1)
+        partitions = partition_list(self.edges, self.partitions)
         times = partition_int(int(self.period / 10), len(partitions))
         schedule = [(time * 10, partition) for time, partition in zip(times, partitions)]
         return schedule 
+    
+    def set_schedule(self, schedule: list[int]):
+        """Sets the schedule of this agent to the new schedule"""
+        new_sched = []
+        for i, tup in enumerate(self.schedule): 
+            _, edges = tup
+            new_sched.append((schedule[i], edges))
+        self.schedule = new_sched
     
     def reset(self):
         self.index = 0
@@ -80,10 +92,22 @@ class TrafficLight:
 
 class Simulation:
     
-    def __init__(self, graph: Graph, roads: list[Road], corr: dict[Node, Road], cars: list[LightningMcQueen], agents: list[TrafficLight], max_time: int = 1200):
+    def __init__(self, graph: Graph, 
+                 roads: list[Road], 
+                 corr: dict[Node, Road], 
+                 cars: list[LightningMcQueen], 
+                 agents: list[TrafficLight], 
+                 max_time: int = 1200, 
+                 num_partitions: int = 4, 
+                 max_light_time: int = 100):
         
         self.MAX_TIME = max_time
+        self.NUM_PARTITIONS = num_partitions
+        self.MAX_LIGHT_TIME = max_light_time
         self.INITIAL_NUM_CARS = len(cars)
+        self.INITIAL_SCHEDULE = self.get_schedule()
+        
+        self.schedule = self.INITIAL_SCHEDULE
         self.graph = graph
         self.roads = roads 
         self.corr = corr
@@ -95,7 +119,9 @@ class Simulation:
         # correspond each edge to a traffic light agent for efficiency
         self.edge_to_agent: dict[Edge, TrafficLight] = {}
         self.node_to_agent: dict[Node, TrafficLight] = {}
+        self.id_to_agent: dict[int, TrafficLight] = {}
         for agent in self.agents: 
+            self.id_to_agent[agent.id] = agent
             self.node_to_agent[agent.node] = agent
             for edge in agent.edges:
                 self.edge_to_agent[edge] = agent
@@ -105,10 +131,6 @@ class Simulation:
         for car in self.cars:
             car.reset()
             
-    def update_schedule(self, schedule: dict[TrafficLight, list[tuple[int, set[Edge]]]]):
-        for agent, sched in schedule.items():
-            agent.schedule = sched
-
             
     def done(self):
         if self.time >= self.MAX_TIME or self.cars == []:
@@ -119,6 +141,7 @@ class Simulation:
     def reset(self):
         
         self.time = 0
+        self.schedule = self.INITIAL_SCHEDULE
 
         for road in self.roads: 
             road.reset()
@@ -132,6 +155,7 @@ class Simulation:
             agent.reset()
         
         return self.observation()
+    
 
     def is_active_edge(self, curr_seg: Road, next_seg: Road):
         curr_node = curr_seg.node
@@ -140,7 +164,7 @@ class Simulation:
         return Edge(curr_node, next_node) in agent.active_edges
     
 
-    def observation(self) -> dict[TrafficLight, Observation]:
+    def observation(self) -> dict[int, Observation]:
         
         incoming: dict[TrafficLight, int] = {}
         outgoing: dict[TrafficLight, int] = {}
@@ -158,10 +182,10 @@ class Simulation:
             outgoing[curr_agent] = outgoing.get(curr_agent, 0) + 1
             incoming[next_agent] = incoming.get(next_agent, 0) + 1
 
-        # put together the observation
+        # tuple of dictionaries -> dictionary of tuples
         observations = {} 
         for agent in self.agents:
-            observations[agent] = Observation(incoming[agent], 
+            observations[agent.id] = Observation(incoming[agent], 
                                               outgoing[agent], 
                                               light_congestion[agent])
             
@@ -270,7 +294,8 @@ class LightningMcQueen:
         return self.path[self.pos]
     
     def has_completed_path(self):
-        return self.pos == len(self.path) - 1
+        return self.pos == len(self.path) - 1    
+   
 
         
 if __name__ == "__main__":
@@ -282,20 +307,25 @@ if __name__ == "__main__":
     NUM_NODES = 10
     NUM_EDGES = 20
     NUM_PATHS = 100
+    NUM_PARTITIONS = 4
+    MAX_LIGHT_TIME = 30
     
     graph = Graph(NUM_NODES, NUM_EDGES)
     roads = [Road(node, capacity=random.randint(10, 20), time=random.randint(5, 10)) for node in graph.nodes]
     corr = dict(zip(graph.nodes, roads))
     cars = [LightningMcQueen(generate_random_path(roads, corr)) for _ in range(NUM_PATHS)]
         
-    lights = [TrafficLight(node) for node in graph.nodes]
+    # TODO: Try this simulation with different traffic light period lengths, not just 60 for all 
+    lights = [TrafficLight(node, NUM_PARTITIONS) for node in graph.nodes] 
         
     sim = Simulation(graph=graph, 
                      roads=roads, 
                      corr=corr, 
                      cars=cars, 
                      agents=lights, 
-                     max_time=TOTAL_TIME)
+                     max_time=TOTAL_TIME,
+                     num_partitions=NUM_PARTITIONS,
+                     max_light_time=MAX_LIGHT_TIME)
 
     # Remove all files in the graphs directory
     if not os.path.exists('graphs'):

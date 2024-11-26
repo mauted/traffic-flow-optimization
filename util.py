@@ -49,19 +49,20 @@ def change_gif_framerate(input_gif, output_gif, duration):
     create_gif_from_images("frames", output_gif, duration)
     
     
-def partition_list(lst, min_size=1):
+def partition_list(lst, num_components):
     """Randomly split the list into subsets of some minimum size."""
     
-    total_length = len(lst)
-    splits = []
-    
-    while total_length > 0:
-        subset_size = random.randint(min_size, total_length)
-        splits.append(lst[:subset_size])
-        lst = lst[subset_size:]
-        total_length -= subset_size
-        
-    return splits
+    if len(lst) < num_components:
+        return lst * num_components # should return the initial list num_components times 
+    else:
+        # use partition_int to split the list into sizes, and then take those sizes after shuffling
+        random.shuffle(lst)
+        partitions = []
+        sizes = partition_int(len(lst), num_components)
+        for size in sizes:
+            partitions.append(lst[:size])
+            lst = lst[size:]
+        return partitions
 
 def partition_int(n, k):
     if k == 1:
@@ -71,4 +72,6 @@ def partition_int(n, k):
     return sizes 
 
 if __name__ == "__main__":
-    change_gif_framerate("output.gif", "output.gif", 100)
+    lst = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    lsts = partition_list(lst, 4)
+    breakpoint()
