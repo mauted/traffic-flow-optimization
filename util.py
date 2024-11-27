@@ -53,7 +53,7 @@ def partition_list(lst, num_components):
     """Randomly split the list into subsets of some minimum size."""
     
     if len(lst) < num_components:
-        return lst * num_components # should return the initial list num_components times 
+        return [lst] * num_components # should return the initial list num_components times 
     else:
         # use partition_int to split the list into sizes, and then take those sizes after shuffling
         random.shuffle(lst)
@@ -70,6 +70,7 @@ def partition_int(n, k):
     splits = sorted(random.sample(range(1, n), k - 1))
     sizes = [splits[0]] + [splits[i] - splits[i - 1] for i in range(1, k - 1)] + [n - splits[-1]]
     return sizes 
+
 
 if __name__ == "__main__":
     lst = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]

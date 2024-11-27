@@ -34,12 +34,12 @@ class Road:
 
 class TrafficLight:
     
-    def __init__(self, node: Node, partitions: int = 4, period: int = 60, schedule = None):
+    def __init__(self, node: Node, partitions: int = 4, initial_period: int = 60, schedule = None):
         self.id = node.id
         self.partitions = partitions
         self.node = node
         self.edges, self.conversion = self.get_edges(self.node)
-        self.period = period
+        self.period = initial_period
         if schedule == None: 
             self.schedule = self.generate_random_schedule()
         else:
@@ -105,16 +105,14 @@ class Simulation:
         self.NUM_PARTITIONS = num_partitions
         self.MAX_LIGHT_TIME = max_light_time
         self.INITIAL_NUM_CARS = len(cars)
-        self.INITIAL_SCHEDULE = self.get_schedule()
         
-        self.schedule = self.INITIAL_SCHEDULE
         self.graph = graph
         self.roads = roads 
         self.corr = corr
         self.cars = cars
         self.agents = agents
         
-        self.finished_cars = []
+        self.initial_cars = self.cars.copy()
         
         # correspond each edge to a traffic light agent for efficiency
         self.edge_to_agent: dict[Edge, TrafficLight] = {}
@@ -126,10 +124,7 @@ class Simulation:
             for edge in agent.edges:
                 self.edge_to_agent[edge] = agent
                         
-        self.time = 0
-        
-        for car in self.cars:
-            car.reset()
+        self.reset()
             
             
     def done(self):
@@ -141,29 +136,26 @@ class Simulation:
     def reset(self):
         
         self.time = 0
-        self.schedule = self.INITIAL_SCHEDULE
 
         for road in self.roads: 
             road.reset()
-
-        self.cars = self.finished_cars[:]
+            
+        self.cars = self.initial_cars
         for car in self.cars:
             car.reset()
-
+            
         # reset agents 
         for agent in self.agents:
             agent.reset()
         
         return self.observation()
     
-
     def is_active_edge(self, curr_seg: Road, next_seg: Road):
         curr_node = curr_seg.node
         next_node = next_seg.node
         agent = self.edge_to_agent[Edge(curr_node, next_node)]
         return Edge(curr_node, next_node) in agent.active_edges
     
-
     def observation(self) -> dict[int, Observation]:
         
         incoming: dict[TrafficLight, int] = {}
@@ -177,17 +169,17 @@ class Simulation:
             curr_seg = car.path[car.pos]
             next_seg = car.path[car.pos + 1]
             # calculate incoming and outgoing for each
-            curr_agent = self.node_to_agent(curr_seg.node)
-            next_agent = self.node_to_agent(next_seg.node)
+            curr_agent = self.node_to_agent[curr_seg.node]
+            next_agent = self.node_to_agent[next_seg.node]
             outgoing[curr_agent] = outgoing.get(curr_agent, 0) + 1
             incoming[next_agent] = incoming.get(next_agent, 0) + 1
 
         # tuple of dictionaries -> dictionary of tuples
         observations = {} 
         for agent in self.agents:
-            observations[agent.id] = Observation(incoming[agent], 
-                                              outgoing[agent], 
-                                              light_congestion[agent])
+            observations[agent.id] = Observation(incoming.get(agent, 0), 
+                                        outgoing.get(agent, 0), 
+                                        light_congestion.get(agent, 0))
             
         return observations
             
@@ -224,15 +216,12 @@ class Simulation:
                             
         return total_congestion
                 
-    
     def remove_vehicle(self, car: LightningMcQueen):
-        self.finished_cars.append(car)
         # remove car from the simulation 
         self.cars.remove(car)
         # remove the car from the node it is on
         where = car.where()
         where.remove_mcqueen(car)
-
     
     def draw(self):
         # Create the graph structure
