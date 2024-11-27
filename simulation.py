@@ -9,7 +9,7 @@ from util import create_gif_from_images, partition_list, partition_int
 from tqdm import tqdm
 from collections import namedtuple
 
-Observation = namedtuple("Observation", ["incoming", "outgoing", "congestion"])
+Observation = namedtuple("Observation", ["incoming", "outgoing"])
 
 class Road:
     
@@ -61,6 +61,7 @@ class TrafficLight:
         return edges, conversion
 
     def generate_random_schedule(self) -> list[tuple[int, set[Edge]]]:
+        """Generates a random schedule of time:list_of_active_edges, with at most self.partitions amount of partitions"""
         partitions = partition_list(self.edges, self.partitions)
         times = partition_int(int(self.period / 10), len(partitions))
         schedule = [(time * 10, partition) for time, partition in zip(times, partitions)]
@@ -105,7 +106,6 @@ class Simulation:
         self.NUM_PARTITIONS = num_partitions
         self.MAX_LIGHT_TIME = max_light_time
         self.INITIAL_NUM_CARS = len(cars)
-        
         self.graph = graph
         self.roads = roads 
         self.corr = corr
@@ -125,8 +125,7 @@ class Simulation:
                 self.edge_to_agent[edge] = agent
                         
         self.reset()
-            
-            
+    
     def done(self):
         if self.time >= self.MAX_TIME or self.cars == []:
             return True
@@ -160,10 +159,6 @@ class Simulation:
         
         incoming: dict[TrafficLight, int] = {}
         outgoing: dict[TrafficLight, int] = {}
-        light_congestion: dict[TrafficLight, int] = {}
-        
-        for light in self.agents:
-            light_congestion[light] = len(self.corr[light.node].vehicles)
             
         for car in self.cars:
             curr_seg = car.path[car.pos]
@@ -178,9 +173,7 @@ class Simulation:
         observations = {} 
         for agent in self.agents:
             observations[agent.id] = Observation(incoming.get(agent, 0), 
-                                        outgoing.get(agent, 0), 
-                                        light_congestion.get(agent, 0))
-            
+                                        outgoing.get(agent, 0))         
         return observations
             
     def tick(self): 
@@ -303,8 +296,6 @@ if __name__ == "__main__":
     roads = [Road(node, capacity=random.randint(10, 20), time=random.randint(5, 10)) for node in graph.nodes]
     corr = dict(zip(graph.nodes, roads))
     cars = [LightningMcQueen(generate_random_path(roads, corr)) for _ in range(NUM_PATHS)]
-        
-    # TODO: Try this simulation with different traffic light period lengths, not just 60 for all 
     lights = [TrafficLight(node, NUM_PARTITIONS) for node in graph.nodes] 
         
     sim = Simulation(graph=graph, 

@@ -28,7 +28,7 @@ class TrafficEnvironment(gym.Env):
 
         # action space corresponds to the possible schedules per agent, this value is chosen via step and then multiplied by 10
         # to match the actual times desired
-        agent_act_space = spaces.MultiDiscrete([self.sim.MAX_LIGHT_TIME] * self.num_partitions)
+        agent_act_space = spaces.MultiDiscrete([int(self.sim.MAX_LIGHT_TIME)] * self.num_partitions)
         self.action_space = spaces.Dict({
             agent.id: agent_act_space for agent in self.sim.agents
         })        
