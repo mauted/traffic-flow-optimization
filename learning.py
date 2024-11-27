@@ -32,34 +32,30 @@ def adjacent_increments(time: int, step: int, max: int):
         adjs.append(time - step)
     if time + step <= max:
         adjs.append(time + step)
+    adjs.append(time)
     return adjs
 
-def get_adjacent_schedules(sim: Simulation, step: int): 
+def get_adjacent_schedules(sim: Simulation, agent: TrafficLight, step: int): 
     """
-    Generates the adjacent schedules for each agent in the simulation. 
+    Generates the adjacent schedules for the single agent in the simulation. 
     This also sets the hard limit that traffic light times can only be increased/decreased in discrete step sizes.
     The hard limit here is not set for the whole simulation as we would like those to remain dynamically adjustable.
     This is unfortunately quite expensive to compute, but this should limit the action space to a feasible amount for Q-learning. 
     """
-    adj_schedules = {}
-    for agent in sim.agents:
-        possible_times = [adjacent_increments(time, step, sim.MAX_LIGHT_TIME) for time, _ in agent.schedule]
-        # this cartesian product represents all the possible neighboring schedules for this particular schedule 
-        cartesian_prod = list(product(*possible_times))
-        # this can probably be a list comprehension, but would that be comprehensible? probably no :)
-        possible_schedules = [] 
-        for times in cartesian_prod:
-            current_schedule = [] 
-            for i, time in enumerate(times):
-                current_schedule.append((time, agent.schedule[i][1])) # time and the edges it corresponds to
-            possible_schedules.append(current_schedule)
-        adj_schedules[agent.id] = possible_schedules
-    # now take the cartesian product again
-    cartesian_product_agent = [dict(zip(adj_schedules.keys(), combination)) for combination in product(*adj_schedules.values())]
-    return cartesian_product_agent
+    possible_times = [adjacent_increments(time, step, sim.MAX_LIGHT_TIME) for time, _ in agent.schedule]
+    # this cartesian product represents all the possible neighboring schedules for this particular schedule 
+    cartesian_prod = list(product(*possible_times))
+    # this can probably be a list comprehension, but would that be comprehensible? probably no :)
+    possible_schedules = [] 
+    for times in cartesian_prod:
+        current_schedule = [] 
+        for i, time in enumerate(times):
+            current_schedule.append((time, agent.schedule[i][1])) # time and the edges it corresponds to
+        possible_schedules.append(current_schedule)
+    return possible_schedules
 
 
-def make_hashable(schedule: dict[int, list[tuple[int, set[Edge]]]]) -> dict[int, tuple[tuple[int, frozenset[int]]]]:
+def make_hashable(data: dict[int, list[tuple[int, set[Edge]]]]) -> dict[int, tuple[tuple[int, frozenset[int]]]]:
     """Turns the schedule into a hashable type"""
     """
     Recursively converts the schedule structure into a hashable type.
@@ -67,23 +63,24 @@ def make_hashable(schedule: dict[int, list[tuple[int, set[Edge]]]]) -> dict[int,
       - list -> tuple
       - set -> frozenset
     """
-    if isinstance(schedule, list):
-        return tuple(make_hashable(item) for item in schedule)
-    elif isinstance(schedule, set):
-        return frozenset(make_hashable(item) for item in schedule)
-    elif isinstance(schedule, dict):
-        return tuple((key, make_hashable(value)) for key, value in schedule.items())
-    elif isinstance(schedule, tuple):
-        return tuple(make_hashable(item) for item in schedule)
+    if isinstance(data, list):
+        return tuple(make_hashable(item) for item in data)
+    elif isinstance(data, set):
+        return frozenset(make_hashable(item) for item in data)
+    elif isinstance(data, dict):
+        return tuple((key, make_hashable(value)) for key, value in data.items())
+    elif isinstance(data, tuple):
+        return tuple(make_hashable(item) for item in data)
+    elif isinstance(data, Edge):
+        return (Edge.start.id, Edge.end.id)
     else:
         return schedule
         
 
-def q_learning(env: gym.Env, num_episodes, checkpoints, gamma=0.9, epsilon=0.9):
+def q_learning(env: gym.Env, num_episodes, gamma=0.9, epsilon=0.9):
     
     Q = {} 
     num_updates = {}
-    checkpoints = []
     
     # for every episode        
     for _ in range(num_episodes):
@@ -91,6 +88,7 @@ def q_learning(env: gym.Env, num_episodes, checkpoints, gamma=0.9, epsilon=0.9):
         # reset the environment 
         observation = env.reset()
         terminated = False
+        agent_index = 0
         
         # while not an ending state
         while not terminated:
@@ -98,20 +96,27 @@ def q_learning(env: gym.Env, num_episodes, checkpoints, gamma=0.9, epsilon=0.9):
             prob = random.uniform(0, 1)
             
             # find the neighbors of this current state 
-            adj_schedules = get_adjacent_schedules(env.sim, 5) # NOTE: This is hardcoding this increment to steps of 5
-                        
+            
+            agent = env.sim.agents[agent_index]
+            
+            adj_schedules = get_adjacent_schedules(env.sim, agent, 5) # NOTE: This is hardcoding this increment to steps of 5
+            
+            hashable_observation = make_hashable(observation)
+            
             # select action 
             if prob < epsilon:
                 action = random.choice(adj_schedules)
             else:
-                action_reward = dict(zip(adj_schedules, [Q.get((observation, action), 0) for action in adj_schedules]))
-                action = max(action_reward, key=action_reward.get)
+                obs = ((action, value) for (obs, action), value in Q.items() if obs == hashable_observation)
+                action = max(obs, key=lambda item: item[1])[0]
+            
+            breakpoint()
+                
+            hashable_action = make_hashable(action)
                         
             # get the new observation                    
-            new_observation, reward, terminated = env.step(action)
+            new_observation, reward, terminated = env.step({agent.id: action})
             
-            hashable_action = make_hashable(action)
-            hashable_observation = make_hashable(observation)
             hashable_new_observation = make_hashable(new_observation)
                         
             # calculating the Q values in parts 
@@ -121,13 +126,14 @@ def q_learning(env: gym.Env, num_episodes, checkpoints, gamma=0.9, epsilon=0.9):
                 gamma_term = 0
             else:
                 gamma_term = gamma * max(items) 
-            Q[(hashable_observation, hashable_action)] += alpha * (reward + gamma_term - 
-                                             Q.get((hashable_observation, hashable_action), 0))
+            Q[(hashable_observation, hashable_action)] = Q.get((hashable_observation, hashable_action), 0) + (alpha * (reward + gamma_term - Q.get((hashable_observation, hashable_action), 0)))
  
             # updating the num_updates matrix 
             num_updates[hashable_observation, hashable_action] = num_updates.get((hashable_observation, hashable_action), 0) + 1 
             # updating observation
             observation = new_observation
+            
+            agent_index = (agent_index + 1) % len(env.sim.agents)
                     
         # update epsilon at the end of the episode 
         epsilon = 0.9999 * epsilon 
