@@ -53,7 +53,7 @@ def get_adjacent_schedules(sim: Simulation, step: int):
             for i, time in enumerate(times):
                 current_schedule.append((time, agent.schedule[i][1])) # time and the edges it corresponds to
             possible_schedules.append(current_schedule)
-        adj_schedules[agent] = possible_schedules
+        adj_schedules[agent.id] = possible_schedules
     # now take the cartesian product again
     cartesian_product_agent = [dict(zip(adj_schedules.keys(), combination)) for combination in product(*adj_schedules.values())]
     return cartesian_product_agent
@@ -74,33 +74,19 @@ def make_hashable(schedule: dict[int, list[tuple[int, set[Edge]]]]) -> dict[int,
     elif isinstance(schedule, dict):
         return tuple((key, make_hashable(value)) for key, value in schedule.items())
     elif isinstance(schedule, tuple):
-        return tuple(make_hashable(item) for item in data)
+        return tuple(make_hashable(item) for item in schedule)
     else:
-        return data
+        return schedule
         
 
 def q_learning(env: gym.Env, num_episodes, checkpoints, gamma=0.9, epsilon=0.9):
-    """
-    Q-learning algorithm.
-
-    Parameters:
-    - num_episodes (int): Number of Q-value episodes to perform.
-    - checkpoints (list): List of episode numbers at which to record the optimal value function..
-
-    Returns:
-    - Q (numpy array): Q-values of shape (nS, nA) after all episodes.
-    - optimal_policy (numpy array): Optimal policy, np array of shape (nS,), ordered by state index.
-    - V_opt_checkpoint_values (list of numpy arrays): A list of optimal value function arrays at specified episode numbers.
-      The saved values at each checkpoint should be of shape (nS,).
-    """
-
     
     Q = {} 
     num_updates = {}
     checkpoints = []
     
     # for every episode        
-    for episode in range(num_episodes):
+    for _ in range(num_episodes):
         
         # reset the environment 
         observation = env.reset()
@@ -108,7 +94,7 @@ def q_learning(env: gym.Env, num_episodes, checkpoints, gamma=0.9, epsilon=0.9):
         
         # while not an ending state
         while not terminated:
-            
+                        
             prob = random.uniform(0, 1)
             
             # find the neighbors of this current state 
@@ -123,29 +109,30 @@ def q_learning(env: gym.Env, num_episodes, checkpoints, gamma=0.9, epsilon=0.9):
                         
             # get the new observation                    
             new_observation, reward, terminated = env.step(action)
+            
+            hashable_action = make_hashable(action)
+            hashable_observation = make_hashable(observation)
+            hashable_new_observation = make_hashable(new_observation)
                         
             # calculating the Q values in parts 
-            alpha = 1 / (1 + num_updates.get((observation, action), 0))
-            gamma_term = gamma * max(Q[new_observation, :])
-            Q[(observation, action)] += alpha * (reward + gamma_term - 
-                                             Q.get((observation, action), 0))
+            alpha = 1 / (1 + num_updates.get((hashable_observation, hashable_action), 0))
+            items = [value for (obs, _), value in Q.items() if obs == hashable_new_observation]  
+            if len(items) == 0:
+                gamma_term = 0
+            else:
+                gamma_term = gamma * max(items) 
+            Q[(hashable_observation, hashable_action)] += alpha * (reward + gamma_term - 
+                                             Q.get((hashable_observation, hashable_action), 0))
  
             # updating the num_updates matrix 
-            num_updates[observation, action] = num_updates.get((observation, action), 0) + 1 
+            num_updates[hashable_observation, hashable_action] = num_updates.get((hashable_observation, hashable_action), 0) + 1 
             # updating observation
             observation = new_observation
                     
         # update epsilon at the end of the episode 
         epsilon = 0.9999 * epsilon 
         
-        # if the episode is a checkpoint episode, checkpoint Q
-        if episode + 1 in checkpoints:
-            checkpoints.append(np.max(Q, axis=1))
-        
-        # set the optimal policy 
-        optimal_policy = np.argmax(Q, axis=1)
-    
-    return Q, optimal_policy, checkpoints
+    return Q
 
 if __name__ == "__main__":
     
