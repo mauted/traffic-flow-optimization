@@ -21,7 +21,7 @@ class TrafficEnvironment(gym.Env):
         self.num_partitions = sim.NUM_PARTITIONS
        
         # corresponding to incoming cars to a traffic light, outgoing cars to a traffic light and the current number of vehicles at the 
-        agent_obs_space = spaces.MultiDiscrete([self.max_congestion, self.max_congestion, self.max_congestion])
+        agent_obs_space = spaces.MultiDiscrete([self.max_congestion, self.max_congestion])
         self.observation_space = spaces.Dict({
             agent.id: agent_obs_space for agent in self.sim.agents
         })
@@ -39,11 +39,13 @@ class TrafficEnvironment(gym.Env):
 
     def step(self, actions):
 
+        # TODO: This step function should take in a tuple of agent id and schedule, and just set that agent's schedule to the one given
         # apply the action to each of the traffic light boys
         for agent_id, action in actions.items():
             agent = self.sim.id_to_agent[agent_id]
             agent.set_schedule(action)
         
+        # NOTE: This part does not need to change
         # make time_ratio simulation steps, for the first n - 1 steps we don't care about the congestion
         # for the last step, record what the congestion was
         for _ in range(self.time_ratio - 1):
