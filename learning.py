@@ -121,8 +121,8 @@ def q_learning(env: gym.Env, num_episodes, checkpoints, gamma=0.9, epsilon=0.9):
                 gamma_term = 0
             else:
                 gamma_term = gamma * max(items) 
-            Q[(hashable_observation, hashable_action)] += alpha * (reward + gamma_term - 
-                                             Q.get((hashable_observation, hashable_action), 0))
+            Q[(hashable_observation, hashable_action)] = Q.get((hashable_observation, hashable_action), 0)
+            + alpha * (reward + gamma_term - Q.get((hashable_observation, hashable_action), 0))
  
             # updating the num_updates matrix 
             num_updates[hashable_observation, hashable_action] = num_updates.get((hashable_observation, hashable_action), 0) + 1 
