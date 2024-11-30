@@ -37,15 +37,12 @@ class TrafficEnvironment(gym.Env):
         """Reset the environment to an initial state."""
         return self.sim.reset()
 
-    def step(self, actions):
-
-        # TODO: This step function should take in a tuple of agent id and schedule, and just set that agent's schedule to the one given
-        # apply the action to each of the traffic light boys
-        for agent_id, action in actions.items():
-            agent = self.sim.id_to_agent[agent_id]
-            agent.set_schedule(action)
+    def step(self, agent_action):
         
-        # NOTE: This part does not need to change
+        agent, action = agent_action
+        
+        agent.set_schedule(action)
+        
         # make time_ratio simulation steps, for the first n - 1 steps we don't care about the congestion
         # for the last step, record what the congestion was
         for _ in range(self.time_ratio - 1):
