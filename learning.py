@@ -1,11 +1,11 @@
 from simulation import Simulation, TrafficLight, LightningMcQueen, Road
 from environment import TrafficEnvironment
-from graph import Edge, Graph, generate_random_path
+from graph import Graph, generate_random_path
 from itertools import product
 import random 
 import gym
 
-"""Cursor no"""
+"""Cursor cellars (warning: dangerous airborne chemicals, beware of CS major sweat)"""
 
 
 def adjacent_increments(time: int, step: int, max: int):
@@ -64,20 +64,26 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
             
             # select action 
             if prob < epsilon:
-                action = random.choice(adj_schedules_all)
+                action_index = random.randint(0, len(adj_schedules_all) - 1)
+                agent_action = adj_schedules_agent[action_index]
+                action = adj_schedules_all[action_index]
             else:
                 max_value = 0
                 max_action_index = random.randint(0, len(adj_schedules_all) - 1)
                 for i, a in enumerate(adj_schedules_all):
-                    value = Q.get(observation, {}).get(action, 0)
+                    value = Q.get(observation, {}).get(a, 0)
                     if value > max_value:
                         max_action_index = i
                         max_value = value
+                agent_action = adj_schedules_agent[max_action_index]
                 action = adj_schedules_all[max_action_index]
                 
+                
             # get the new observation                    
-            new_observation, reward, terminated = env.step((agent, adj_schedules_agent[max_action_index]))
-                        
+            new_observation, reward, terminated = env.step((agent, agent_action))
+            
+            breakpoint()
+            
             # calculating the Q values in parts 
             alpha = 1 / (1 + num_updates.get((observation, action), 0))
             items = [value for (obs, _), value in Q.items() if obs == action]  
@@ -86,8 +92,8 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
             else:
                 gamma_term = gamma * max(items) 
                 
-            Q.get(observation, {}).get(action, 0) += (alpha * (reward + gamma_term - Q.get(observation, {}).get(action, 0)))
- 
+            Q[observation][action] = Q.get(observation, {}).get(action, 0) + (alpha * (reward + gamma_term - Q.get(observation, {}).get(action, 0)))
+
             # updating the num_updates matrix 
             num_updates[(observation, action)] = num_updates.get((observation, action), 0) + 1 
             
@@ -132,4 +138,6 @@ if __name__ == "__main__":
     
     env = TrafficEnvironment(sim, TIME_RATIO)
     
-    get_adjacent_schedules(sim, lights[0], 5)
+    breakpoint()
+    
+    q_learning(env, 1, 5)

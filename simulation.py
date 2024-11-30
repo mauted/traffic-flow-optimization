@@ -41,9 +41,9 @@ class TrafficLight:
         self.edges, self.conversion = self.get_edges(self.node)
         self.period = initial_period
         if schedule == None: 
-            self.schedule = self.generate_random_schedule()
+            self.times, self.edge_partitions = self.generate_random_schedule()
         else:
-            self.schedule = schedule
+            self.times, self.edge_partitions = schedule # which should be a tuple
         
         self.reset()
         
@@ -64,20 +64,15 @@ class TrafficLight:
         """Generates a random schedule of time:list_of_active_edges, with at most self.partitions amount of partitions"""
         partitions = partition_list(self.edges, self.partitions)
         times = partition_int(int(self.period / 10), len(partitions))
-        schedule = [(time * 10, partition) for time, partition in zip(times, partitions)]
-        return schedule 
+        return [time * 10 for time in times], partitions
     
-    def set_schedule(self, schedule: list[int]):
+    def set_schedule(self, times: list[int]):
         """Sets the schedule of this agent to the new schedule"""
-        new_sched = []
-        for i, tup in enumerate(self.schedule): 
-            _, edges = tup
-            new_sched.append((schedule[i], edges))
-        self.schedule = new_sched
+        self.times = times
     
     def reset(self):
         self.index = 0
-        self.time_left, self.active_edges = self.schedule[self.index]
+        self.time_left, self.active_edges = self.times[self.index], self.edge_partitions[self.index]
 
     def tick(self):
         """
@@ -85,8 +80,8 @@ class TrafficLight:
         """
         
         if self.time_left == 0:
-            self.index = (self.index + 1) % len(self.schedule)
-            self.next_time, self.active_edges = self.schedule[self.index]
+            self.index = (self.index + 1) % len(self.times)
+            self.next_time, self.active_edges = self.times[self.index], self.edge_partitions[self.index]
         else:
             self.time_left -= 1
         
@@ -323,5 +318,3 @@ if __name__ == "__main__":
             sim.draw()
 
     create_gif_from_images("graphs", "output.gif", duration=100)
-
-    
