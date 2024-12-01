@@ -74,6 +74,23 @@ def partition_int(n, k):
     return sizes 
 
 
+def sanitize_keys(data):
+    
+    if not isinstance(data, dict):
+        raise TypeError("Input must be a dictionary.")
+
+    sanitized_data = {}
+    for key, value in data.items():
+        if not isinstance(key, (str, int, float, bool, type(None))):
+            key = str(key) 
+        if isinstance(value, dict):
+            value = sanitize_keys(value)
+
+        sanitized_data[key] = value
+
+    return sanitized_data
+
+
 if __name__ == "__main__":
     lst = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     lsts = partition_list(lst, 4)

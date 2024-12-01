@@ -3,8 +3,10 @@ from environment import TrafficEnvironment
 from graph import Graph, generate_random_path
 from itertools import product
 from tqdm import tqdm
-from util import create_gif_from_images
+from util import create_gif_from_images, sanitize_keys
+import shutil
 import random 
+import json
 import gym
 import os
 
@@ -114,6 +116,12 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
         # update epsilon at the end of the episode 
         epsilon = 0.9999 * epsilon 
         
+        # draw this episode and delete the images
+        if draw_dir is not None:
+            create_gif_from_images(f"{draw_dir}/episode_{episode}", f"episodes/episode_{episode}.gif", duration=100)
+            shutil.rmtree(f"{draw_dir}/episode_{episode}")
+        
+        
     # set the optimal policy 
     policy = {}
     for observation in Q:
@@ -125,24 +133,21 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
             best_action = max(actions, key=actions.get)
             policy[observation] = best_action
             
-    if draw_dir is not None:
-        # process all the images into gifs :D
-        for episode in range(num_episodes):
-            create_gif_from_images(f"{draw_dir}/episode_{episode}", f"episode_{episode}.gif", duration=100)
-        
     return Q, policy
 
 if __name__ == "__main__":
     
     random.seed(0)
 
-    TOTAL_TIME = 300
+    TOTAL_TIME = 20
     
     NUM_NODES = 10
     NUM_EDGES = 20
     NUM_PATHS = 50
     NUM_PARTITIONS = 4
     MAX_LIGHT_TIME = 30
+    NUM_EPISODES = 10
+    DELTA_T = 5
     TIME_RATIO = 1
     
     graph = Graph(NUM_NODES, NUM_EDGES)
@@ -163,5 +168,15 @@ if __name__ == "__main__":
     
     env = TrafficEnvironment(sim, TIME_RATIO)
         
-    Q, policy = q_learning(env, 1, 5, draw_dir="graphs")
-    breakpoint() 
+    Q, policy = q_learning(env, NUM_EPISODES, DELTA_T, draw_dir="graphs")
+    
+    # sanitize the keys since json.dumps can't handle tuple as keys, and then write to json
+        
+    sanitized_Q = sanitize_keys(Q)
+    sanitized_policy = sanitize_keys(policy)
+    
+    with open("Q.json", "w") as file:
+        json.dump(sanitized_Q, file, indent=4) 
+        
+    with open("policy.json", "w") as file:
+        json.dump(sanitized_policy, file, indent=4)
