@@ -13,6 +13,32 @@ random.seed(24)
 
 Observation = namedtuple("Observation", ["incoming", "outgoing"])
 
+
+class LightningMcQueen:
+    
+    __COUNTER = 0
+    
+    def __init__(self, path: list[Road]):
+        
+        self.id = LightningMcQueen.__COUNTER
+        LightningMcQueen.__COUNTER += 1
+        self.path = path # set the car path
+        self.reset()
+    
+    def reset(self):
+        self.pos = 0 # initialize car to the first road in the list of roads
+        self.timer = self.path[self.pos].time # initialize the amount of time a car will remain on the nodes
+
+        road = self.path[self.pos]
+        road.add_mcqueen(self)
+    
+    def where(self) -> Road:
+        return self.path[self.pos]
+    
+    def has_completed_path(self):
+        return self.pos == len(self.path) - 1    
+
+
 class Road:
     
     def __init__(self, node: Node, capacity: int, time: int):
@@ -126,6 +152,12 @@ class Simulation:
                 self.edge_to_agent[edge] = agent
                         
         self.reset()
+        
+    def hard_reset(self):
+        """Hard resets this simulation by generating new paths for the simulation graph"""
+        self.cars = [LightningMcQueen(generate_random_path(self.roads, self.corr)) for _ in range(len(self.initial_cars))]
+        self.initial_cars = self.cars.copy()
+        return self.reset()
     
     def done(self):
         if self.time >= self.MAX_TIME or self.cars == []:
@@ -134,13 +166,14 @@ class Simulation:
             return False 
             
     def reset(self):
+        """Soft resets this simulation by putting cars back in their initial position, without generating new paths"""
         
         self.time = 0
 
         for road in self.roads: 
             road.reset()
             
-        self.cars = self.initial_cars
+        self.cars = self.initial_cars.copy()
         for car in self.cars:
             car.reset()
             
@@ -253,30 +286,6 @@ class Simulation:
         plt.title(f"Simulation Time: {self.time}")
         plt.savefig(f"{dir}/simulation_time_{self.time}.png")
         plt.close()
-
-class LightningMcQueen:
-    
-    __COUNTER = 0
-    
-    def __init__(self, path: list[Road]):
-        
-        self.id = LightningMcQueen.__COUNTER
-        LightningMcQueen.__COUNTER += 1
-        self.path = path # set the car path
-        self.reset()
-    
-    def reset(self):
-        self.pos = 0 # initialize car to the first road in the list of roads
-        self.timer = self.path[self.pos].time # initialize the amount of time a car will remain on the nodes
-
-        road = self.path[self.pos]
-        road.add_mcqueen(self)
-    
-    def where(self) -> Road:
-        return self.path[self.pos]
-    
-    def has_completed_path(self):
-        return self.pos == len(self.path) - 1    
    
 
 if __name__ == "__main__":

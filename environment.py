@@ -13,6 +13,7 @@ class TrafficEnvironment(gym.Env):
         super(TrafficEnvironment, self).__init__()
         
         self.sim = sim
+                
         # this is the number of ticks the simulations ticks for, for every env tick
         # this ensures that each change of the schedule has some effect before the environment is changed again
         self.time_ratio = time_ratio 
@@ -35,8 +36,12 @@ class TrafficEnvironment(gym.Env):
         })        
 
     def reset(self):
-        """Reset the environment to an initial state."""
+        """Reset the environment to an initial state with the same set of cars."""
         return self.sim.reset()
+
+    def hard_reset(self):
+        """Reset the environment by keeping the graph layer the same and creating a new set of car routes"""
+        return self.sim.hard_reset()
 
     def step(self, agent_action):
         

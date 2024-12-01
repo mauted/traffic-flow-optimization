@@ -51,7 +51,7 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
             os.mkdir(f"{draw_dir}/episode_{episode}")
         
         # reset the environment 
-        observation = env.reset()
+        observation = env.hard_reset()
         terminated = False
         agent_index = 0
         
