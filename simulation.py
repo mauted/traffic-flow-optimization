@@ -216,7 +216,7 @@ class Simulation:
         where = car.where()
         where.remove_mcqueen(car)
     
-    def draw(self):
+    def draw(self, dir):
         # Create the graph structure
         G = nx.DiGraph()
         for node, neighbors in self.graph.adj_list.items():
@@ -251,7 +251,7 @@ class Simulation:
         
         # Title and save the plot
         plt.title(f"Simulation Time: {self.time}")
-        plt.savefig(f"graphs/simulation_time_{self.time}.png")
+        plt.savefig(f"{dir}/simulation_time_{self.time}.png")
         plt.close()
 
 class LightningMcQueen:

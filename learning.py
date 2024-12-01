@@ -2,12 +2,13 @@ from simulation import Simulation, TrafficLight, LightningMcQueen, Road
 from environment import TrafficEnvironment
 from graph import Graph, generate_random_path
 from itertools import product
+from tqdm import tqdm
+from util import create_gif_from_images
 import random 
 import gym
+import os
 
 """Cursor cellars (warning: dangerous airborne chemicals, beware of CS major sweat)"""
-
-random.seed(20)
 
 def adjacent_increments(time: int, step: int, max: int):
     """Calculates the adjacent increments to the time, given a maximum time."""
@@ -38,15 +39,16 @@ def build_schedule_around(sim: Simulation, agent: TrafficLight, updated_sched: t
     return full_sched
 
         
-# TODO: (luisa probably) needs to add a checkpointing system back into this method
-
-def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=0.9, epsilon=0.9):
+def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=0.9, epsilon=0.9, draw_dir=None):
 
     Q = {}
     num_updates = {}
     
     # for every episode        
-    for _ in range(num_episodes):
+    for episode in tqdm(range(num_episodes)):
+        
+        if draw_dir is not None: 
+            os.mkdir(f"{draw_dir}/episode_{episode}")
         
         # reset the environment 
         observation = env.reset()
@@ -55,7 +57,10 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
         
         # while not an ending state
         while not terminated:
-                                    
+            
+            if draw_dir is not None:
+                env.sim.draw(f"{draw_dir}/episode_{episode}")
+                                                        
             prob = random.uniform(0, 1)
             
             # get the agent whose schedule to change in this iteration
@@ -109,20 +114,36 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
         # update epsilon at the end of the episode 
         epsilon = 0.9999 * epsilon 
         
-    return Q
+    # set the optimal policy 
+    policy = {}
+    for observation in Q:
+        # find the optimal action for this observation
+        actions = Q.get(observation, {})
+        if len(actions) == 0:
+            policy[observation] = None
+        else:
+            best_action = max(actions, key=actions.get)
+            policy[observation] = best_action
+            
+    if draw_dir is not None:
+        # process all the images into gifs :D
+        for episode in range(num_episodes):
+            create_gif_from_images(f"{draw_dir}/episode_{episode}", f"episode_{episode}.gif", duration=100)
+        
+    return Q, policy
 
 if __name__ == "__main__":
     
     random.seed(0)
 
-    TOTAL_TIME = 100
+    TOTAL_TIME = 300
     
-    NUM_NODES = 3
-    NUM_EDGES = 5
-    NUM_PATHS = 3
+    NUM_NODES = 10
+    NUM_EDGES = 20
+    NUM_PATHS = 50
     NUM_PARTITIONS = 4
     MAX_LIGHT_TIME = 30
-    TIME_RATIO = 3
+    TIME_RATIO = 1
     
     graph = Graph(NUM_NODES, NUM_EDGES)
     roads = [Road(node, capacity=random.randint(10, 20), time=random.randint(5, 10)) for node in graph.nodes]
@@ -142,4 +163,5 @@ if __name__ == "__main__":
     
     env = TrafficEnvironment(sim, TIME_RATIO)
         
-    q_learning(env, 1, 5)
+    Q, policy = q_learning(env, 1, 5, draw_dir="graphs")
+    breakpoint() 
