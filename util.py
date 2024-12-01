@@ -3,6 +3,8 @@ import random
 from PIL import Image
 import os
 
+random.seed(24)
+
 # Print out the number of frames in the GIF
 def get_num_frames(input_gif):
     reader = imageio.get_reader(input_gif)

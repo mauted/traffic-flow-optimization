@@ -7,6 +7,7 @@ import gym
 
 """Cursor cellars (warning: dangerous airborne chemicals, beware of CS major sweat)"""
 
+random.seed(20)
 
 def adjacent_increments(time: int, step: int, max: int):
     """Calculates the adjacent increments to the time, given a maximum time."""
@@ -26,14 +27,15 @@ def get_adjacent_schedules(sim: Simulation, agent: TrafficLight, step: int) -> l
     The hard limit here is not set for the whole simulation as we would like those to remain dynamically adjustable.
     This is unfortunately quite expensive to compute, but this should limit the action space to a feasible amount for Q-learning. 
     """
-    possible_times = [adjacent_increments(time, step, sim.MAX_LIGHT_TIME) for time, _ in agent.schedule]
+    possible_times = [adjacent_increments(time, step, sim.MAX_LIGHT_TIME) for time in agent.times]
     cartesian_prod = list(product(*possible_times))
     return cartesian_prod
 
 
 def build_schedule_around(sim: Simulation, agent: TrafficLight, updated_sched: tuple[int]):
     """Builds the full schedule around the single agent's updated schedule"""
-    return [a.schedule if a.id != agent.id else updated_sched for a in sim.agents]
+    full_sched = (a.get_schedule() if a.id != agent.id else updated_sched for a in sim.agents)
+    return full_sched
 
         
 # TODO: (luisa probably) needs to add a checkpointing system back into this method
@@ -53,7 +55,7 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
         
         # while not an ending state
         while not terminated:
-                        
+                                    
             prob = random.uniform(0, 1)
             
             # get the agent whose schedule to change in this iteration
@@ -61,12 +63,12 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
             # get all the adjacent schedules for this agent, so the next possible schedules to assign this agent.
             adj_schedules_agent = get_adjacent_schedules(env.sim, agent, time_increments)
             adj_schedules_all = [build_schedule_around(env.sim, agent, sched) for sched in adj_schedules_agent]
-            
+                        
             # select action 
             if prob < epsilon:
                 action_index = random.randint(0, len(adj_schedules_all) - 1)
                 agent_action = adj_schedules_agent[action_index]
-                action = adj_schedules_all[action_index]
+                action = tuple(adj_schedules_all[action_index])
             else:
                 max_value = 0
                 max_action_index = random.randint(0, len(adj_schedules_all) - 1)
@@ -76,22 +78,24 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
                         max_action_index = i
                         max_value = value
                 agent_action = adj_schedules_agent[max_action_index]
-                action = adj_schedules_all[max_action_index]
-                
+                action = tuple(adj_schedules_all[max_action_index])                
                 
             # get the new observation                    
             new_observation, reward, terminated = env.step((agent, agent_action))
-            
-            breakpoint()
-            
+                                                
             # calculating the Q values in parts 
             alpha = 1 / (1 + num_updates.get((observation, action), 0))
-            items = [value for (obs, _), value in Q.items() if obs == action]  
-            if len(items) == 0:
+            
+            actions = Q.get(new_observation, {})
+            
+            if len(actions) == 0:
                 gamma_term = 0
             else:
-                gamma_term = gamma * max(items) 
-                
+                gamma_term = gamma * max(actions.values()) 
+            
+            if observation not in Q:
+                Q[observation] = {}
+                            
             Q[observation][action] = Q.get(observation, {}).get(action, 0) + (alpha * (reward + gamma_term - Q.get(observation, {}).get(action, 0)))
 
             # updating the num_updates matrix 
@@ -137,7 +141,5 @@ if __name__ == "__main__":
                      max_light_time=MAX_LIGHT_TIME)
     
     env = TrafficEnvironment(sim, TIME_RATIO)
-    
-    breakpoint()
-    
+        
     q_learning(env, 1, 5)

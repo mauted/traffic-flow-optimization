@@ -9,6 +9,8 @@ from util import create_gif_from_images, partition_list, partition_int
 from tqdm import tqdm
 from collections import namedtuple
 
+random.seed(24)
+
 Observation = namedtuple("Observation", ["incoming", "outgoing"])
 
 class Road:
@@ -69,6 +71,10 @@ class TrafficLight:
     def set_schedule(self, times: list[int]):
         """Sets the schedule of this agent to the new schedule"""
         self.times = times
+        
+    def get_schedule(self) -> tuple[int]:
+        """Gives this agent's schedule as a tuple."""
+        return tuple(self.times)
     
     def reset(self):
         self.index = 0
@@ -150,7 +156,7 @@ class Simulation:
         agent = self.edge_to_agent[Edge(curr_node, next_node)]
         return Edge(curr_node, next_node) in agent.active_edges
     
-    def observation(self) -> dict[int, Observation]:
+    def observation(self) -> list[tuple[int, Observation]]:
         
         incoming: dict[TrafficLight, int] = {}
         outgoing: dict[TrafficLight, int] = {}
@@ -165,11 +171,10 @@ class Simulation:
             incoming[next_agent] = incoming.get(next_agent, 0) + 1
 
         # tuple of dictionaries -> dictionary of tuples
-        observations = {} 
+        observations = []
         for agent in self.agents:
-            observations[agent.id] = Observation(incoming.get(agent, 0), 
-                                        outgoing.get(agent, 0))         
-        return observations
+            observations.append((agent.id, Observation(incoming.get(agent, 0), outgoing.get(agent, 0))))         
+        return tuple(observations)
             
     def tick(self): 
         
@@ -274,7 +279,6 @@ class LightningMcQueen:
         return self.pos == len(self.path) - 1    
    
 
-        
 if __name__ == "__main__":
 
     random.seed(0)

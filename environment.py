@@ -4,6 +4,7 @@ from gym import spaces
 from simulation import Simulation, Road, LightningMcQueen, TrafficLight
 from graph import Graph, generate_random_path
 
+random.seed(24)
 
 class TrafficEnvironment(gym.Env):
     
