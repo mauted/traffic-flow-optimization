@@ -4,3 +4,4 @@ cache
 test/__pycache__
 graphs/
 frames
+.vscode
