@@ -296,7 +296,7 @@ if __name__ == "__main__":
     
     NUM_NODES = 10
     NUM_EDGES = 20
-    NUM_PATHS = 100
+    NUM_PATHS = 1
     NUM_PARTITIONS = 4
     MAX_LIGHT_TIME = 30
     

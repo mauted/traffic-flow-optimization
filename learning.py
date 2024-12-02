@@ -49,6 +49,8 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
     # for every episode        
     for episode in tqdm(range(num_episodes)):
         
+        congestions = []
+        
         if draw_dir is not None: 
             os.mkdir(f"{draw_dir}/episode_{episode}")
         
@@ -112,6 +114,7 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
             observation = new_observation
             
             agent_index = (agent_index + 1) % len(env.sim.agents)
+            
                     
         # update epsilon at the end of the episode 
         epsilon = 0.9999 * epsilon 
@@ -120,7 +123,9 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
         if draw_dir is not None:
             create_gif_from_images(f"{draw_dir}/episode_{episode}", f"episodes/episode_{episode}.gif", duration=100)
             shutil.rmtree(f"{draw_dir}/episode_{episode}")
-        
+            
+        congestions.append(-reward) # add the final congestion of this episode into the list of congestions 
+        print(f"Congestion: {-reward}")
         
     # set the optimal policy 
     policy = {}
@@ -133,17 +138,17 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
             best_action = max(actions, key=actions.get)
             policy[observation] = best_action
             
-    return Q, policy
+    return Q, policy, congestions
 
 if __name__ == "__main__":
     
     random.seed(0)
 
-    TOTAL_TIME = 20
+    TOTAL_TIME = 100
     
     NUM_NODES = 10
     NUM_EDGES = 20
-    NUM_PATHS = 50
+    NUM_PATHS = 100
     NUM_PARTITIONS = 4
     MAX_LIGHT_TIME = 30
     NUM_EPISODES = 10
@@ -168,7 +173,7 @@ if __name__ == "__main__":
     
     env = TrafficEnvironment(sim, TIME_RATIO)
         
-    Q, policy = q_learning(env, NUM_EPISODES, DELTA_T, draw_dir="graphs")
+    Q, policy, congestions = q_learning(env, NUM_EPISODES, DELTA_T, draw_dir="graphs")
     
     # sanitize the keys since json.dumps can't handle tuple as keys, and then write to json
         
@@ -180,3 +185,5 @@ if __name__ == "__main__":
         
     with open("policy.json", "w") as file:
         json.dump(sanitized_policy, file, indent=4)
+        
+    print(congestions)
