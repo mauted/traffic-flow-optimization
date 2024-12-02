@@ -1,10 +1,16 @@
 from simulation import Simulation, TrafficLight, LightningMcQueen, Road
 from environment import TrafficEnvironment
-from graph import Edge, Graph, generate_random_path
+from graph import Graph, generate_random_path
 from itertools import product
+from tqdm import tqdm
+from util import create_gif_from_images, sanitize_keys
+import shutil
 import random 
+import json
 import gym
+import os
 
+"""Cursor cellars (warning: dangerous airborne chemicals, beware of CS major sweat)"""
 
 def adjacent_increments(time: int, step: int, max: int):
     """Calculates the adjacent increments to the time, given a maximum time."""
@@ -16,115 +22,123 @@ def adjacent_increments(time: int, step: int, max: int):
     adjs.append(time)
     return adjs
 
-# TODO: This function needs to take in the same parameters, but just return a list of 4 tuples, which represent the list of schedules possible in this simulation for this agent in the next time step.
-def get_adjacent_schedules(sim: Simulation, agent: TrafficLight, step: int): 
+
+def get_adjacent_schedules(sim: Simulation, agent: TrafficLight, step: int) -> list[tuple[int]]: 
     """
     Generates the adjacent schedules for the single agent in the simulation. 
     This also sets the hard limit that traffic light times can only be increased/decreased in discrete step sizes.
     The hard limit here is not set for the whole simulation as we would like those to remain dynamically adjustable.
     This is unfortunately quite expensive to compute, but this should limit the action space to a feasible amount for Q-learning. 
     """
-    possible_times = [adjacent_increments(time, step, sim.MAX_LIGHT_TIME) for time, _ in agent.schedule]
-    # this cartesian product represents all the possible neighboring schedules for this particular schedule 
+    possible_times = [adjacent_increments(time, step, sim.MAX_LIGHT_TIME) for time in agent.times]
     cartesian_prod = list(product(*possible_times))
-    # this can probably be a list comprehension, but would that be comprehensible? probably no :)
-    possible_schedules = [] 
-    for times in cartesian_prod:
-        current_schedule = [] 
-        for i, time in enumerate(times):
-            current_schedule.append((time, agent.schedule[i][1])) # time and the edges it corresponds to
-        possible_schedules.append(current_schedule)
-    return possible_schedules
+    return cartesian_prod
 
 
-# TODO: We shouldn't need this function after refactoring
-def make_hashable(data: dict[int, list[tuple[int, set[Edge]]]]) -> dict[int, tuple[tuple[int, frozenset[int]]]]:
-    """Turns the schedule into a hashable type"""
-    """
-    Recursively converts the schedule structure into a hashable type.
-    Replaces:
-      - list -> tuple
-      - set -> frozenset
-    """
-    if isinstance(data, list):
-        return tuple(make_hashable(item) for item in data)
-    elif isinstance(data, set):
-        return frozenset(make_hashable(item) for item in data)
-    elif isinstance(data, dict):
-        return tuple((key, make_hashable(value)) for key, value in data.items())
-    elif isinstance(data, tuple):
-        return tuple(make_hashable(item) for item in data)
-    elif isinstance(data, Edge):
-        return (Edge.start.id, Edge.end.id)
-    else:
-        return schedule
+def build_schedule_around(sim: Simulation, agent: TrafficLight, updated_sched: tuple[int]):
+    """Builds the full schedule around the single agent's updated schedule"""
+    full_sched = (a.get_schedule() if a.id != agent.id else updated_sched for a in sim.agents)
+    return full_sched
+
         
-# TODO: (luisa probably) needs to add a checkpointing system back into this method
+def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=0.9, epsilon=0.9, draw_dir=None):
 
-def q_learning(env: gym.Env, num_episodes, gamma=0.9, epsilon=0.9):
-
-    Q = {} 
+    Q = {}
     num_updates = {}
     
     # for every episode        
-    for _ in range(num_episodes):
+    for episode in tqdm(range(num_episodes)):
+        
+        congestions = []
+        
+        if draw_dir is not None: 
+            os.mkdir(f"{draw_dir}/episode_{episode}")
         
         # reset the environment 
-        observation = env.reset()
+        observation = env.hard_reset()
         terminated = False
         agent_index = 0
         
         # while not an ending state
         while not terminated:
-                        
+            
+            if draw_dir is not None:
+                env.sim.draw(f"{draw_dir}/episode_{episode}")
+                                                        
             prob = random.uniform(0, 1)
             
-            # find the neighbors of this current state 
+            # get the agent whose schedule to change in this iteration
             agent = env.sim.agents[agent_index]
-            
-            adj_schedules = get_adjacent_schedules(env.sim, agent, 5) # NOTE: This is hardcoding this increment to steps of 5
-            
-            # TODO: Should not need this anymore since observation should be a 2 tuple
-            hashable_observation = make_hashable(observation)
-            
+            # get all the adjacent schedules for this agent, so the next possible schedules to assign this agent.
+            adj_schedules_agent = get_adjacent_schedules(env.sim, agent, time_increments)
+            adj_schedules_all = [build_schedule_around(env.sim, agent, sched) for sched in adj_schedules_agent]
+                        
             # select action 
             if prob < epsilon:
-                action = random.choice(adj_schedules)
+                action_index = random.randint(0, len(adj_schedules_all) - 1)
+                agent_action = adj_schedules_agent[action_index]
+                action = tuple(adj_schedules_all[action_index])
             else:
-                # TODO: This should iterate over all possible actions and choose the best one according to the Q table
-                obs = ((action, value) for (obs, action), value in Q.items() if obs == hashable_observation)
-                action = max(obs, key=lambda item: item[1])[0]
-            
-            # TODO: Should not need this anymore                
-            hashable_action = make_hashable(action)
-                        
+                max_value = 0
+                max_action_index = random.randint(0, len(adj_schedules_all) - 1)
+                for i, a in enumerate(adj_schedules_all):
+                    value = Q.get(observation, {}).get(a, 0)
+                    if value > max_value:
+                        max_action_index = i
+                        max_value = value
+                agent_action = adj_schedules_agent[max_action_index]
+                action = tuple(adj_schedules_all[max_action_index])                
+                
             # get the new observation                    
-            new_observation, reward, terminated = env.step({agent.id: action})
-            
-            # TODO: Should not need this anymore                
-            hashable_new_observation = make_hashable(new_observation)
-            
-            # TODO: This calculation should be exactly like the reinforcement learning homework that we did, except that the Q table should be a dictionary that takes a (observation, action) and returns the result. The observation is a 2 tuple and the action is a #num-partitions tuple
+            new_observation, reward, terminated = env.step((agent, agent_action))
+                                                
             # calculating the Q values in parts 
-            alpha = 1 / (1 + num_updates.get((hashable_observation, hashable_action), 0))
-            items = [value for (obs, _), value in Q.items() if obs == hashable_new_observation]  
-            if len(items) == 0:
+            alpha = 1 / (1 + num_updates.get((observation, action), 0))
+            
+            actions = Q.get(new_observation, {})
+            
+            if len(actions) == 0:
                 gamma_term = 0
             else:
-                gamma_term = gamma * max(items) 
-            Q[(hashable_observation, hashable_action)] = Q.get((hashable_observation, hashable_action), 0) + (alpha * (reward + gamma_term - Q.get((hashable_observation, hashable_action), 0)))
- 
+                gamma_term = gamma * max(actions.values()) 
+            
+            if observation not in Q:
+                Q[observation] = {}
+                            
+            Q[observation][action] = Q.get(observation, {}).get(action, 0) + (alpha * (reward + gamma_term - Q.get(observation, {}).get(action, 0)))
+
             # updating the num_updates matrix 
-            num_updates[hashable_observation, hashable_action] = num_updates.get((hashable_observation, hashable_action), 0) + 1 
+            num_updates[(observation, action)] = num_updates.get((observation, action), 0) + 1 
+            
             # updating observation
             observation = new_observation
             
             agent_index = (agent_index + 1) % len(env.sim.agents)
+            
                     
         # update epsilon at the end of the episode 
         epsilon = 0.9999 * epsilon 
         
-    return Q
+        # draw this episode and delete the images
+        if draw_dir is not None:
+            create_gif_from_images(f"{draw_dir}/episode_{episode}", f"episodes/episode_{episode}.gif", duration=100)
+            shutil.rmtree(f"{draw_dir}/episode_{episode}")
+            
+        congestions.append(-reward) # add the final congestion of this episode into the list of congestions 
+        print(f"Congestion: {-reward}")
+        
+    # set the optimal policy 
+    policy = {}
+    for observation in Q:
+        # find the optimal action for this observation
+        actions = Q.get(observation, {})
+        if len(actions) == 0:
+            policy[observation] = None
+        else:
+            best_action = max(actions, key=actions.get)
+            policy[observation] = best_action
+            
+    return Q, policy, congestions
 
 if __name__ == "__main__":
     
@@ -132,12 +146,14 @@ if __name__ == "__main__":
 
     TOTAL_TIME = 100
     
-    NUM_NODES = 3
-    NUM_EDGES = 5
-    NUM_PATHS = 3
+    NUM_NODES = 10
+    NUM_EDGES = 20
+    NUM_PATHS = 100
     NUM_PARTITIONS = 4
     MAX_LIGHT_TIME = 30
-    TIME_RATIO = 3
+    NUM_EPISODES = 10
+    DELTA_T = 5
+    TIME_RATIO = 1
     
     graph = Graph(NUM_NODES, NUM_EDGES)
     roads = [Road(node, capacity=random.randint(10, 20), time=random.randint(5, 10)) for node in graph.nodes]
@@ -156,4 +172,18 @@ if __name__ == "__main__":
                      max_light_time=MAX_LIGHT_TIME)
     
     env = TrafficEnvironment(sim, TIME_RATIO)
-    q_learning(env, 1, 3)
+        
+    Q, policy, congestions = q_learning(env, NUM_EPISODES, DELTA_T, draw_dir="graphs")
+    
+    # sanitize the keys since json.dumps can't handle tuple as keys, and then write to json
+        
+    sanitized_Q = sanitize_keys(Q)
+    sanitized_policy = sanitize_keys(policy)
+    
+    with open("Q.json", "w") as file:
+        json.dump(sanitized_Q, file, indent=4) 
+        
+    with open("policy.json", "w") as file:
+        json.dump(sanitized_policy, file, indent=4)
+        
+    print(congestions)

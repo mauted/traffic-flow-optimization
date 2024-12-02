@@ -9,7 +9,35 @@ from util import create_gif_from_images, partition_list, partition_int
 from tqdm import tqdm
 from collections import namedtuple
 
+random.seed(24)
+
 Observation = namedtuple("Observation", ["incoming", "outgoing"])
+
+
+class LightningMcQueen:
+    
+    __COUNTER = 0
+    
+    def __init__(self, path: list[Road]):
+        
+        self.id = LightningMcQueen.__COUNTER
+        LightningMcQueen.__COUNTER += 1
+        self.path = path # set the car path
+        self.reset()
+    
+    def reset(self):
+        self.pos = 0 # initialize car to the first road in the list of roads
+        self.timer = self.path[self.pos].time # initialize the amount of time a car will remain on the nodes
+
+        road = self.path[self.pos]
+        road.add_mcqueen(self)
+    
+    def where(self) -> Road:
+        return self.path[self.pos]
+    
+    def has_completed_path(self):
+        return self.pos == len(self.path) - 1    
+
 
 class Road:
     
@@ -41,9 +69,9 @@ class TrafficLight:
         self.edges, self.conversion = self.get_edges(self.node)
         self.period = initial_period
         if schedule == None: 
-            self.schedule = self.generate_random_schedule()
+            self.times, self.edge_partitions = self.generate_random_schedule()
         else:
-            self.schedule = schedule
+            self.times, self.edge_partitions = schedule # which should be a tuple
         
         self.reset()
         
@@ -64,20 +92,19 @@ class TrafficLight:
         """Generates a random schedule of time:list_of_active_edges, with at most self.partitions amount of partitions"""
         partitions = partition_list(self.edges, self.partitions)
         times = partition_int(int(self.period / 10), len(partitions))
-        schedule = [(time * 10, partition) for time, partition in zip(times, partitions)]
-        return schedule 
+        return [time * 10 for time in times], partitions
     
-    def set_schedule(self, schedule: list[int]):
+    def set_schedule(self, times: list[int]):
         """Sets the schedule of this agent to the new schedule"""
-        new_sched = []
-        for i, tup in enumerate(self.schedule): 
-            _, edges = tup
-            new_sched.append((schedule[i], edges))
-        self.schedule = new_sched
+        self.times = times
+        
+    def get_schedule(self) -> tuple[int]:
+        """Gives this agent's schedule as a tuple."""
+        return tuple(self.times)
     
     def reset(self):
         self.index = 0
-        self.time_left, self.active_edges = self.schedule[self.index]
+        self.time_left, self.active_edges = self.times[self.index], self.edge_partitions[self.index]
 
     def tick(self):
         """
@@ -85,8 +112,8 @@ class TrafficLight:
         """
         
         if self.time_left == 0:
-            self.index = (self.index + 1) % len(self.schedule)
-            self.next_time, self.active_edges = self.schedule[self.index]
+            self.index = (self.index + 1) % len(self.times)
+            self.next_time, self.active_edges = self.times[self.index], self.edge_partitions[self.index]
         else:
             self.time_left -= 1
         
@@ -125,6 +152,12 @@ class Simulation:
                 self.edge_to_agent[edge] = agent
                         
         self.reset()
+        
+    def hard_reset(self):
+        """Hard resets this simulation by generating new paths for the simulation graph"""
+        self.cars = [LightningMcQueen(generate_random_path(self.roads, self.corr)) for _ in range(len(self.initial_cars))]
+        self.initial_cars = self.cars.copy()
+        return self.reset()
     
     def done(self):
         if self.time >= self.MAX_TIME or self.cars == []:
@@ -133,13 +166,14 @@ class Simulation:
             return False 
             
     def reset(self):
+        """Soft resets this simulation by putting cars back in their initial position, without generating new paths"""
         
         self.time = 0
 
         for road in self.roads: 
             road.reset()
             
-        self.cars = self.initial_cars
+        self.cars = self.initial_cars.copy()
         for car in self.cars:
             car.reset()
             
@@ -155,7 +189,7 @@ class Simulation:
         agent = self.edge_to_agent[Edge(curr_node, next_node)]
         return Edge(curr_node, next_node) in agent.active_edges
     
-    def observation(self) -> dict[int, Observation]:
+    def observation(self) -> list[tuple[int, Observation]]:
         
         incoming: dict[TrafficLight, int] = {}
         outgoing: dict[TrafficLight, int] = {}
@@ -170,11 +204,10 @@ class Simulation:
             incoming[next_agent] = incoming.get(next_agent, 0) + 1
 
         # tuple of dictionaries -> dictionary of tuples
-        observations = {} 
+        observations = []
         for agent in self.agents:
-            observations[agent.id] = Observation(incoming.get(agent, 0), 
-                                        outgoing.get(agent, 0))         
-        return observations
+            observations.append((agent.id, Observation(incoming.get(agent, 0), outgoing.get(agent, 0))))         
+        return tuple(observations)
             
     def tick(self): 
         
@@ -216,7 +249,7 @@ class Simulation:
         where = car.where()
         where.remove_mcqueen(car)
     
-    def draw(self):
+    def draw(self, dir):
         # Create the graph structure
         G = nx.DiGraph()
         for node, neighbors in self.graph.adj_list.items():
@@ -251,35 +284,10 @@ class Simulation:
         
         # Title and save the plot
         plt.title(f"Simulation Time: {self.time}")
-        plt.savefig(f"graphs/simulation_time_{self.time}.png")
+        plt.savefig(f"{dir}/simulation_time_{self.time}.png")
         plt.close()
-
-class LightningMcQueen:
-    
-    __COUNTER = 0
-    
-    def __init__(self, path: list[Road]):
-        
-        self.id = LightningMcQueen.__COUNTER
-        LightningMcQueen.__COUNTER += 1
-        self.path = path # set the car path
-        self.reset()
-    
-    def reset(self):
-        self.pos = 0 # initialize car to the first road in the list of roads
-        self.timer = self.path[self.pos].time # initialize the amount of time a car will remain on the nodes
-
-        road = self.path[self.pos]
-        road.add_mcqueen(self)
-    
-    def where(self) -> Road:
-        return self.path[self.pos]
-    
-    def has_completed_path(self):
-        return self.pos == len(self.path) - 1    
    
 
-        
 if __name__ == "__main__":
 
     random.seed(0)
@@ -288,7 +296,7 @@ if __name__ == "__main__":
     
     NUM_NODES = 10
     NUM_EDGES = 20
-    NUM_PATHS = 100
+    NUM_PATHS = 1
     NUM_PARTITIONS = 4
     MAX_LIGHT_TIME = 30
     
@@ -323,5 +331,3 @@ if __name__ == "__main__":
             sim.draw()
 
     create_gif_from_images("graphs", "output.gif", duration=100)
-
-    

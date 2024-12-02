@@ -4,3 +4,7 @@ cache
 test/__pycache__
 graphs/
 frames
+.vscode
+episodes
+policy.json
+Q.json

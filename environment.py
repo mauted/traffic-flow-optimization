@@ -4,6 +4,7 @@ from gym import spaces
 from simulation import Simulation, Road, LightningMcQueen, TrafficLight
 from graph import Graph, generate_random_path
 
+random.seed(24)
 
 class TrafficEnvironment(gym.Env):
     
@@ -12,6 +13,7 @@ class TrafficEnvironment(gym.Env):
         super(TrafficEnvironment, self).__init__()
         
         self.sim = sim
+                
         # this is the number of ticks the simulations ticks for, for every env tick
         # this ensures that each change of the schedule has some effect before the environment is changed again
         self.time_ratio = time_ratio 
@@ -34,18 +36,19 @@ class TrafficEnvironment(gym.Env):
         })        
 
     def reset(self):
-        """Reset the environment to an initial state."""
+        """Reset the environment to an initial state with the same set of cars."""
         return self.sim.reset()
 
-    def step(self, actions):
+    def hard_reset(self):
+        """Reset the environment by keeping the graph layer the same and creating a new set of car routes"""
+        return self.sim.hard_reset()
 
-        # TODO: This step function should take in a tuple of agent id and schedule, and just set that agent's schedule to the one given
-        # apply the action to each of the traffic light boys
-        for agent_id, action in actions.items():
-            agent = self.sim.id_to_agent[agent_id]
-            agent.set_schedule(action)
+    def step(self, agent_action):
         
-        # NOTE: This part does not need to change
+        agent, action = agent_action
+        
+        agent.set_schedule(action)
+        
         # make time_ratio simulation steps, for the first n - 1 steps we don't care about the congestion
         # for the last step, record what the congestion was
         for _ in range(self.time_ratio - 1):

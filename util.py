@@ -3,6 +3,8 @@ import random
 from PIL import Image
 import os
 
+random.seed(24)
+
 # Print out the number of frames in the GIF
 def get_num_frames(input_gif):
     reader = imageio.get_reader(input_gif)
@@ -70,6 +72,23 @@ def partition_int(n, k):
     splits = sorted(random.sample(range(1, n), k - 1))
     sizes = [splits[0]] + [splits[i] - splits[i - 1] for i in range(1, k - 1)] + [n - splits[-1]]
     return sizes 
+
+
+def sanitize_keys(data):
+    
+    if not isinstance(data, dict):
+        raise TypeError("Input must be a dictionary.")
+
+    sanitized_data = {}
+    for key, value in data.items():
+        if not isinstance(key, (str, int, float, bool, type(None))):
+            key = str(key) 
+        if isinstance(value, dict):
+            value = sanitize_keys(value)
+
+        sanitized_data[key] = value
+
+    return sanitized_data
 
 
 if __name__ == "__main__":

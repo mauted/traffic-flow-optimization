@@ -4,6 +4,9 @@ from collections import namedtuple
 import random
 from typing import TYPE_CHECKING
 
+random.seed(24)
+np.random.seed(24)
+
 if TYPE_CHECKING:
     from simulation import Road
 
