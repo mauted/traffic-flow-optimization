@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import random
 from old.graph import TrafficSupergraph
 
-random.seed(0)
+random.seed(24)
 
 T = TrafficSupergraph.build_supergraph(10)
 print(T.roads)
