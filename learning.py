@@ -7,6 +7,7 @@ from util import create_gif_from_images, sanitize_keys
 import shutil
 import random 
 import json
+import csv
 import gym
 import os
 
@@ -44,11 +45,13 @@ def build_schedule_around(sim: Simulation, agent: TrafficLight, updated_sched: t
 def control_run(env: gym.Env, num_runs: int, draw_dir=None):
     
     all_congestions = [] 
+    all_vehicles = []
     
     # for every run        
     for run in tqdm(range(num_runs)):
         
         congestions = []
+        vehicles = [] 
         
         if draw_dir is not None: 
             os.mkdir(f"{draw_dir}/run_{run}")
@@ -62,15 +65,17 @@ def control_run(env: gym.Env, num_runs: int, draw_dir=None):
                 env.sim.draw(f"{draw_dir}/run_{run}")
                                                         
             congestions.append(env.sim.tick())
+            vehicles.append(len(env.sim.cars))
         
         all_congestions.append(congestions)
+        all_vehicles.append(vehicles)
                     
         # draw this run and delete the images
         if draw_dir is not None:
             create_gif_from_images(f"{draw_dir}/run_{run}", f"runs/run_{run}.gif", duration=100)
             shutil.rmtree(f"{draw_dir}/run_{run}")
             
-    return all_congestions
+    return all_congestions, all_vehicles
 
         
 def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=0.9, epsilon=0.9, draw_dir=None):
@@ -205,11 +210,15 @@ def control():
     
     env = TrafficEnvironment(sim, TIME_RATIO)
     
-    congestions = control_run(env, NUM_RUNS, "graphs/control")
+    congestions, vehicles = control_run(env, NUM_RUNS, "graphs/control")
     
-    with open("control_congestion.txt", "w") as file:
-        for row in congestions:
-            file.write(" ".join(map(str, row)) + "\n")
+    with open("control_congestion.csv", mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(congestions)
+            
+    with open("control_vehicles.csv", mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(vehicles)
             
 
 def learning():
