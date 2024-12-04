@@ -210,7 +210,9 @@ class Simulation:
         return tuple(observations)
             
     def tick(self): 
-        
+        """
+        Returns the total congestion of the network at the current time step.
+        """
         total_congestion = 0 # total congestion of the whole network
         self.time += 1
         
