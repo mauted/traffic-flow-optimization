@@ -66,6 +66,9 @@ def control_run(env: gym.Env, num_runs: int, draw_dir=None):
                                                         
             congestions.append(env.sim.tick())
             vehicles.append(len(env.sim.cars))
+            
+        print(congestions[-1])
+        print(vehicles[-1])
         
         all_congestions.append(congestions)
         all_vehicles.append(vehicles)
@@ -186,7 +189,7 @@ def control():
     
     NUM_NODES = 10
     NUM_EDGES = 20
-    NUM_PATHS = 140
+    NUM_PATHS = 180
     NUM_PARTITIONS = 4
     MAX_LIGHT_TIME = 30
     NUM_RUNS = 50
