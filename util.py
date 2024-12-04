@@ -90,8 +90,17 @@ def sanitize_keys(data):
 
     return sanitized_data
 
+def compute_mean_and_std(data):
+    """Compute the mean and standard deviation of a list of numbers."""
+    n = len(data)
+    mean = sum(data) / n
+    std = (sum((x - mean) ** 2 for x in data) / n) ** 0.5
+    return mean, std
+
 
 if __name__ == "__main__":
-    lst = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    lsts = partition_list(lst, 4)
-    breakpoint()
+    with open('remaining_vehicles.txt', 'r') as file:
+        data = [list(map(int, line.strip().split())) for line in file.readlines()]
+
+    mean, std = compute_mean_and_std(data[0])
+    print(f"Mean: {mean}, Standard Deviation: {std}")
