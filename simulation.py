@@ -292,7 +292,7 @@ if __name__ == "__main__":
 
     random.seed(24)
 
-    TOTAL_TIME = 100
+    TOTAL_TIME = 200
     
     NUM_NODES = 10
     NUM_EDGES = 20

@@ -54,7 +54,8 @@ def control_run(env: gym.Env, num_runs: int, draw_dir=None):
         vehicles = [] 
         
         if draw_dir is not None: 
-            os.mkdir(f"{draw_dir}/run_{run}")
+            run_dir = f"{draw_dir}/run_{run}"
+            os.makedirs(run_dir, exist_ok=True)
         
         # reset the environment 
         env.hard_reset()
@@ -62,7 +63,7 @@ def control_run(env: gym.Env, num_runs: int, draw_dir=None):
         while env.sim.time < env.sim.MAX_TIME and not env.sim.done(): 
             
             if draw_dir is not None:
-                env.sim.draw(f"{draw_dir}/run_{run}")
+                env.sim.draw(run_dir)
                                                         
             congestions.append(env.sim.tick())
             vehicles.append(len(env.sim.cars))
@@ -75,8 +76,8 @@ def control_run(env: gym.Env, num_runs: int, draw_dir=None):
                     
         # draw this run and delete the images
         if draw_dir is not None:
-            create_gif_from_images(f"{draw_dir}/run_{run}", f"runs/run_{run}.gif", duration=100)
-            shutil.rmtree(f"{draw_dir}/run_{run}")
+            create_gif_from_images(run_dir, f"runs/run_{run}.gif", duration=100)
+            shutil.rmtree(run_dir)
             
     return all_congestions, all_vehicles
 
@@ -85,14 +86,15 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
 
     Q = {}
     num_updates = {}
+
+    congestions = []
+    cars_remaining = []
     
     # for every episode        
     for episode in tqdm(range(num_episodes)):
         
-        congestions = []
-        
         if draw_dir is not None: 
-            os.mkdir(f"{draw_dir}/episode_{episode}")
+            os.makedirs(f"{draw_dir}/episode_{episode}", exist_ok=True)
         
         # reset the environment 
         observation = env.hard_reset()
@@ -165,7 +167,8 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
             shutil.rmtree(f"{draw_dir}/episode_{episode}")
             
         congestions.append(-reward) # add the final congestion of this episode into the list of congestions 
-        print(f"Congestion: {-reward}")
+        cars_remaining.append(len(env.sim.cars)) # add the final number of cars remaining into the list of cars remaining
+        print(f"Congestion: {-reward}, Cars Remaining: {len(env.sim.cars)}")
         
     # set the optimal policy 
     policy = {}
@@ -178,7 +181,7 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
             best_action = max(actions, key=actions.get)
             policy[observation] = best_action
             
-    return Q, policy, congestions
+    return Q, policy, congestions, cars_remaining
 
 
 def control():
@@ -232,10 +235,10 @@ def learning():
     
     NUM_NODES = 10
     NUM_EDGES = 20
-    NUM_PATHS = 140
+    NUM_PATHS = 180
     NUM_PARTITIONS = 4
     MAX_LIGHT_TIME = 30
-    NUM_EPISODES = 10
+    NUM_EPISODES = 50
     DELTA_T = 5
     TIME_RATIO = 1
     
@@ -257,7 +260,7 @@ def learning():
     
     env = TrafficEnvironment(sim, TIME_RATIO)
         
-    Q, policy, congestions = q_learning(env, NUM_EPISODES, DELTA_T, draw_dir="graphs")
+    Q, policy, congestions, cars_remaining = q_learning(env, NUM_EPISODES, DELTA_T, draw_dir="graphs")
     
     # sanitize the keys since json.dumps can't handle tuple as keys, and then write to json
         
@@ -271,8 +274,9 @@ def learning():
         json.dump(sanitized_policy, file, indent=4)
         
     with open("control_congestion.txt", "w") as file:
-        file.write(" ".join(map(str, congestions)) + "\n") # TODO: THIS IS PROBABLY NOT CORRECT 
+        file.write(" ".join(map(str, congestions)) + "\n") # TODO: THIS IS PROBABLY NOT CORRECT
     
-    
+    with open("remaining_vehicles.txt", "w") as file:
+        file.write(" ".join(map(str, cars_remaining)) + "\n")
 if __name__ == "__main__":
-    control()
+    learning()
