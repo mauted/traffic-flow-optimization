@@ -99,8 +99,4 @@ def compute_mean_and_std(data):
 
 
 if __name__ == "__main__":
-    with open('remaining_vehicles.txt', 'r') as file:
-        data = [list(map(int, line.strip().split())) for line in file.readlines()]
-
-    mean, std = compute_mean_and_std(data[0])
-    print(f"Mean: {mean}, Standard Deviation: {std}")
+    create_images_from_gif("episodes/episode_10.gif", "frames")
