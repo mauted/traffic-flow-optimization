@@ -278,5 +278,6 @@ def learning():
     
     with open("remaining_vehicles.txt", "w") as file:
         file.write(" ".join(map(str, cars_remaining)) + "\n")
+        
 if __name__ == "__main__":
-    learning()
+    control()
