@@ -66,7 +66,7 @@ class TrafficEnvironment(gym.Env):
 
 if __name__ == "__main__":
     
-    random.seed(0)
+    random.seed(24)
 
     TOTAL_TIME = 100
     

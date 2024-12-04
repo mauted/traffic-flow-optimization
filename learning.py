@@ -7,6 +7,7 @@ from util import create_gif_from_images, sanitize_keys
 import shutil
 import random 
 import json
+import csv
 import gym
 import os
 
@@ -39,6 +40,42 @@ def build_schedule_around(sim: Simulation, agent: TrafficLight, updated_sched: t
     """Builds the full schedule around the single agent's updated schedule"""
     full_sched = (a.get_schedule() if a.id != agent.id else updated_sched for a in sim.agents)
     return full_sched
+
+
+def control_run(env: gym.Env, num_runs: int, draw_dir=None):
+    
+    all_congestions = [] 
+    all_vehicles = []
+    
+    # for every run        
+    for run in tqdm(range(num_runs)):
+        
+        congestions = []
+        vehicles = [] 
+        
+        if draw_dir is not None: 
+            os.mkdir(f"{draw_dir}/run_{run}")
+        
+        # reset the environment 
+        env.hard_reset()
+        
+        while env.sim.time < env.sim.MAX_TIME and not env.sim.done(): 
+            
+            if draw_dir is not None:
+                env.sim.draw(f"{draw_dir}/run_{run}")
+                                                        
+            congestions.append(env.sim.tick())
+            vehicles.append(len(env.sim.cars))
+        
+        all_congestions.append(congestions)
+        all_vehicles.append(vehicles)
+                    
+        # draw this run and delete the images
+        if draw_dir is not None:
+            create_gif_from_images(f"{draw_dir}/run_{run}", f"runs/run_{run}.gif", duration=100)
+            shutil.rmtree(f"{draw_dir}/run_{run}")
+            
+    return all_congestions, all_vehicles
 
         
 def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=0.9, epsilon=0.9, draw_dir=None):
@@ -140,15 +177,63 @@ def q_learning(env: gym.Env, num_episodes: int, time_increments: int = 5, gamma=
             
     return Q, policy, congestions
 
-if __name__ == "__main__":
-    
-    random.seed(0)
 
-    TOTAL_TIME = 100
+def control():
+    
+    random.seed(24)
+
+    TOTAL_TIME = 200
     
     NUM_NODES = 10
     NUM_EDGES = 20
+<<<<<<< HEAD
     NUM_PATHS = 200
+=======
+    NUM_PATHS = 140
+    NUM_PARTITIONS = 4
+    MAX_LIGHT_TIME = 30
+    NUM_RUNS = 50
+    TIME_RATIO = 1
+    
+    graph = Graph(NUM_NODES, NUM_EDGES)
+    roads = [Road(node, capacity=random.randint(10, 20), time=random.randint(5, 10)) for node in graph.nodes]
+    corr = dict(zip(graph.nodes, roads))
+    cars = [LightningMcQueen(generate_random_path(roads, corr)) for _ in range(NUM_PATHS)]
+        
+    lights = [TrafficLight(node, NUM_PARTITIONS) for node in graph.nodes] 
+        
+    sim = Simulation(graph=graph, 
+                     roads=roads, 
+                     corr=corr, 
+                     cars=cars, 
+                     agents=lights, 
+                     max_time=TOTAL_TIME,
+                     num_partitions=NUM_PARTITIONS,
+                     max_light_time=MAX_LIGHT_TIME)
+    
+    env = TrafficEnvironment(sim, TIME_RATIO)
+    
+    congestions, vehicles = control_run(env, NUM_RUNS, "graphs/control")
+    
+    with open("control_congestion.csv", mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(congestions)
+            
+    with open("control_vehicles.csv", mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(vehicles)
+            
+
+def learning():
+        
+    random.seed(24)
+
+    TOTAL_TIME = 200
+    
+    NUM_NODES = 10
+    NUM_EDGES = 20
+    NUM_PATHS = 140
+>>>>>>> 3a2b85d7fb84cb618c2fd3449c0e215dce3e7e97
     NUM_PARTITIONS = 4
     MAX_LIGHT_TIME = 30
     NUM_EPISODES = 3
@@ -186,4 +271,9 @@ if __name__ == "__main__":
     with open("policy.json", "w") as file:
         json.dump(sanitized_policy, file, indent=4)
         
-    print(congestions)
+    with open("control_congestion.txt", "w") as file:
+        file.write(" ".join(map(str, congestions)) + "\n") # TODO: THIS IS PROBABLY NOT CORRECT 
+    
+    
+if __name__ == "__main__":
+    control()
